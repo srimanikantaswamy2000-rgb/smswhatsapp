@@ -18,8 +18,6 @@ import { SettingsChip, StatusDot } from './settings-chip';
 import { ROLE_META } from './role-meta';
 
 interface OverviewCounts {
-  members: number | null;
-  pendingInvites: number | null;
   templates: number | null;
   templatesPending: number | null;
   tags: number | null;
@@ -36,8 +34,7 @@ export function SettingsOverview({
 }: {
   onSelect: (section: SettingsSection) => void;
 }) {
-  const { user, profile, accountId, accountRole, defaultCurrency, canManageMembers } =
-    useAuth();
+  const { user, profile, accountId, accountRole, defaultCurrency } = useAuth();
   const { mode, theme } = useTheme();
   const t = useTranslations('Settings.overview');
   const tRoles = useTranslations('roles');
@@ -62,14 +59,8 @@ export function SettingsOverview({
     // Cheap counts — resolve fast, render immediately.
     (async () => {
       setCountsLoading(true);
-      const [membersRes, invitesRes, templatesTotal, templatesPending, tagsRes, fieldsRes] =
+      const [templatesTotal, templatesPending, tagsRes, fieldsRes] =
         await Promise.allSettled([
-          fetch('/api/account/members', { cache: 'no-store' }).then((r) => r.json()),
-          canManageMembers
-            ? fetch('/api/account/invitations', { cache: 'no-store' }).then((r) =>
-                r.json(),
-              )
-            : Promise.resolve(null),
           supabase
             .from('message_templates')
             .select('id', { count: 'exact', head: true })
@@ -88,20 +79,7 @@ export function SettingsOverview({
 
       if (cancelled) return;
 
-      const members =
-        membersRes.status === 'fulfilled' && Array.isArray(membersRes.value?.members)
-          ? membersRes.value.members.length
-          : null;
-      const pendingInvites =
-        invitesRes.status === 'fulfilled' &&
-        invitesRes.value &&
-        Array.isArray(invitesRes.value.invitations)
-          ? invitesRes.value.invitations.length
-          : null;
-
       setCounts({
-        members,
-        pendingInvites,
         templates:
           templatesTotal.status === 'fulfilled'
             ? templatesTotal.value.count ?? null
@@ -139,7 +117,7 @@ export function SettingsOverview({
     return () => {
       cancelled = true;
     };
-  }, [user?.id, accountId, canManageMembers]);
+  }, [user?.id, accountId]);
 
   const displayName = profile?.full_name || profile?.email || t('yourAccount');
   const initial = (profile?.full_name || profile?.email || 'U').charAt(0).toUpperCase();
@@ -172,18 +150,6 @@ export function SettingsOverview({
           <StatusDot tone="muted" /> {t('needsReconnecting')}
         </>
       ),
-    },
-    {
-      section: 'members',
-      loading: countsLoading,
-      subtitle:
-        counts?.members == null
-          ? t('viewTeamMembers')
-          : `${t('membersCount', { count: counts.members })}${
-              counts.pendingInvites
-                ? ` · ${t('pendingInvites', { count: counts.pendingInvites })}`
-                : ''
-            }`,
     },
     {
       section: 'templates',
