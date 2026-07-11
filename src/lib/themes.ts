@@ -15,6 +15,7 @@
 
 export const THEME_IDS = [
   "violet",
+  "teal",
   "emerald",
   "cobalt",
   "amber",
@@ -23,7 +24,7 @@ export const THEME_IDS = [
 
 export type ThemeId = (typeof THEME_IDS)[number];
 
-export const DEFAULT_THEME: ThemeId = "violet";
+export const DEFAULT_THEME: ThemeId = "teal";
 
 export const STORAGE_KEY = "wacrm.theme";
 
@@ -43,7 +44,7 @@ export const MODES = ["light", "dark"] as const;
 
 export type Mode = (typeof MODES)[number];
 
-export const DEFAULT_MODE: Mode = "dark";
+export const DEFAULT_MODE: Mode = "light";
 
 export const MODE_STORAGE_KEY = "wacrm.mode";
 
@@ -72,6 +73,12 @@ export const THEMES: ReadonlyArray<ThemeMeta> = [
     name: "Violet",
     tagline: "The default — confident, slightly playful.",
     swatch: "oklch(0.526 0.247 293)",
+  },
+  {
+    id: "teal",
+    name: "Teal",
+    tagline: "Warm cream surfaces with a dark teal rail — the new default.",
+    swatch: "oklch(0.45 0.08 190)",
   },
   {
     id: "emerald",
