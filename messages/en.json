@@ -25,6 +25,7 @@
     "automations": "Automations",
     "flows": "Flows",
     "aiAgents": "AI Agents",
+    "inventory": "Inventory",
     "settings": "Settings",
     "beta": "Beta",
     "unreadConversations": "{count} unread {count, plural, =1 {conversation} other {conversations}}",
@@ -471,6 +472,45 @@
       "toastRenameFailed": "Could not rename field.",
       "toastDeleteFailed": "Could not delete field.",
       "toastDeleted": "Deleted \"{name}\"."
+    }
+  },
+  "Inventory": {
+    "page": {
+      "title": "Inventory",
+      "subtitle": "{count, plural, =1 {# part} other {# parts}}",
+      "subtitleZero": "No parts yet",
+      "addPartBtn": "Add Part",
+      "searchPlaceholder": "Search parts…",
+      "tableColumns": {
+        "partNumber": "Part #",
+        "name": "Name",
+        "category": "Category",
+        "price": "Price",
+        "stock": "Stock",
+        "compatibility": "Compatibility"
+      },
+      "loading": "Loading parts…",
+      "noPartsYet": "No parts yet",
+      "noPartsMatch": "No parts match your search",
+      "unnamed": "Unnamed",
+      "lowStock": "Low",
+      "addPartTitle": "Add Part",
+      "addPartDesc": "Add a new part to your inventory catalog.",
+      "form": {
+        "partNumber": "Part Number",
+        "name": "Name",
+        "category": "Category",
+        "price": "Price",
+        "stock": "Stock Quantity",
+        "compatibility": "Model Compatibility",
+        "compatibilityPlaceholder": "e.g. X1, X2"
+      },
+      "cancel": "Cancel",
+      "save": "Save",
+      "partNumberRequired": "Part number is required",
+      "toastFailedLoad": "Failed to load parts",
+      "toastFailedSave": "Failed to save part",
+      "toastSaved": "Part saved"
     }
   },
   "Pipelines": {
