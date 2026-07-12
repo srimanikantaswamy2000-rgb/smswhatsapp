@@ -25,6 +25,7 @@
     "automations": "Automations",
     "flows": "Flows",
     "aiAgents": "AI Agents",
+    "appointments": "Appointments",
     "inventory": "Inventory",
     "settings": "Settings",
     "beta": "Beta",
@@ -511,6 +512,42 @@
       "toastFailedLoad": "Failed to load parts",
       "toastFailedSave": "Failed to save part",
       "toastSaved": "Part saved"
+    }
+  },
+  "Appointments": {
+    "page": {
+      "title": "Appointments",
+      "subtitle": "{count, plural, =1 {# appointment} other {# appointments}}",
+      "subtitleZero": "No appointments yet",
+      "newAppointmentBtn": "New Appointment",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "loading": "Loading appointments…",
+      "noAppointmentsYet": "No appointments yet",
+      "unnamed": "Unnamed",
+      "status": {
+        "booked": "Booked",
+        "completed": "Completed",
+        "no_show": "No Show",
+        "cancelled": "Cancelled"
+      },
+      "markAs": "Mark as",
+      "newAppointmentTitle": "New Appointment",
+      "newAppointmentDesc": "Book a new appointment.",
+      "form": {
+        "phone": "Phone",
+        "customerName": "Customer Name",
+        "requestedTime": "Requested Time"
+      },
+      "cancel": "Cancel",
+      "save": "Save",
+      "phoneRequired": "Phone is required",
+      "requestedTimeRequired": "Requested time is required",
+      "toastFailedLoad": "Failed to load appointments",
+      "toastFailedSave": "Failed to save appointment",
+      "toastSaved": "Appointment booked",
+      "toastFailedStatus": "Failed to update status",
+      "toastStatusUpdated": "Status updated"
     }
   },
   "Pipelines": {
