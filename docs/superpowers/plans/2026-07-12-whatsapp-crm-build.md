@@ -14,7 +14,7 @@
 - Local git only. No remote. Commit after every task.
 - Secrets go in `.env.local` ONLY (git-ignored). Never in any committed file.
 - Supabase project: `https://hgvnrjbdklvxufrmdius.supabase.co` (keys already supplied by user; they are in `.env.local` after Task 3 — read them from there, never echo them into committed files or logs).
-- WhatsApp: phone_number_id `1208358239023557`, verify token `srimanikanta123`, system-user token supplied by user (in `.env.local` after Task 3 as `SEED_WHATSAPP_ACCESS_TOKEN`).
+- WhatsApp: phone_number_id `<WHATSAPP_PHONE_NUMBER_ID - see .env.local>`, verify token `<WHATSAPP_VERIFY_TOKEN - see .env.local>`, system-user token supplied by user (in `.env.local` after Task 3 as `SEED_WHATSAPP_ACCESS_TOKEN`).
 - `META_APP_SECRET` is a placeholder until the user supplies it — webhook GET verify works, inbound POSTs will 401 until then. Do not "fix" this.
 - Keep next-intl. New UI strings are added to `messages/en.json`.
 - Team accounts: hide UI only (nav + pages); do NOT touch account-sharing migrations/RLS.
@@ -122,9 +122,9 @@ ENCRYPTION_KEY=<generated 64-hex>
 META_APP_SECRET=REPLACE_ME_WITH_META_APP_SECRET
 NEXT_PUBLIC_APP_LOCALE=en
 WHATSAPP_TEMPLATES_DRY_RUN=true
-SEED_WHATSAPP_PHONE_NUMBER_ID=1208358239023557
+SEED_WHATSAPP_PHONE_NUMBER_ID=<WHATSAPP_PHONE_NUMBER_ID - see .env.local>
 SEED_WHATSAPP_ACCESS_TOKEN=<system-user token from user>
-SEED_WHATSAPP_VERIFY_TOKEN=srimanikanta123
+SEED_WHATSAPP_VERIFY_TOKEN=<WHATSAPP_VERIFY_TOKEN - see .env.local>
 ```
 
 - [ ] **Step 2: Verify it is ignored**
@@ -466,7 +466,7 @@ const TABS = [
 - [ ] **Step 3: Verify the webhook handshake**
 
 ```powershell
-Invoke-RestMethod "http://localhost:3000/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=srimanikanta123&hub.challenge=12345"
+Invoke-RestMethod "http://localhost:3000/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=<WHATSAPP_VERIFY_TOKEN - see .env.local>&hub.challenge=12345"
 ```
 
 Expected: response body `12345`. (Inbound POSTs stay 401 until the user supplies META_APP_SECRET — expected, do not chase.)
@@ -484,5 +484,5 @@ Expected: response body `12345`. (Inbound POSTs stay 401 until the user supplies
 - [ ] **Step 1:** `npm run typecheck` → 0 errors. `npm test` → all pass. `npm run build` → succeeds.
 - [ ] **Step 2:** Dev server: click through every sidebar page (Dashboard, Inbox, Contacts, Pipelines, Broadcasts, Automations, Flows, AI Agents, Appointments, Inventory, Catalog, Notifications, Settings) — no runtime errors in terminal or browser console.
 - [ ] **Step 3:** Screenshots: `/dashboard`, `/broadcasts/[id]`, `/inventory` — palette check against reference images.
-- [ ] **Step 4:** `git log --oneline` sanity; `Grep` the repo for the token prefix `EAAT`, the service-role key prefix, and `srimanikanta123` — zero hits outside `.env.local`.
+- [ ] **Step 4:** `git log --oneline` sanity; `Grep` the repo for the token prefix `EAAT`, the service-role key prefix, and `<WHATSAPP_VERIFY_TOKEN - see .env.local>` — zero hits outside `.env.local`.
 - [ ] **Step 5:** Final commit if anything changed; report results to the user with the screenshots.

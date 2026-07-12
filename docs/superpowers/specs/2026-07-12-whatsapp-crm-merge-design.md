@@ -76,7 +76,7 @@ to the consolidated Supabase migrations.
 - Credentials live in `.env.local` only (git-ignored, never committed):
   - `WHATSAPP_PHONE_NUMBER_ID` = test phone id provided by user
   - `WHATSAPP_ACCESS_TOKEN` = system-user token provided by user
-  - `WHATSAPP_WEBHOOK_VERIFY_TOKEN` = `srimanikanta123`
+  - `WHATSAPP_WEBHOOK_VERIFY_TOKEN` = `<WHATSAPP_VERIFY_TOKEN - see .env.local>`
   - (exact variable names follow wacrm's `.env.local.example`)
 - Webhook endpoint: wacrm's existing `/api/whatsapp/webhook`.
 - **Security note:** the system-user token was shared in plaintext chat and
@@ -104,7 +104,7 @@ to the consolidated Supabase migrations.
 
 1. `tsc --noEmit` and `vitest run` pass after trimming and porting.
 2. App boots with `next dev`; all sidebar pages render without errors.
-3. Webhook GET verify handshake succeeds against `srimanikanta123`.
+3. Webhook GET verify handshake succeeds against `<WHATSAPP_VERIFY_TOKEN - see .env.local>`.
 4. Broadcast detail page visually matches image 2 (Playwright screenshot
    compared by eye).
 5. No secrets in any committed file; `.env.local` git-ignored.
