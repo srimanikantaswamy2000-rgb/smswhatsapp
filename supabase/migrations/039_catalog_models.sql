@@ -1,11 +1,13 @@
 -- ============================================================
 -- 039_catalog_models
 --
--- Catalog module: tractor/harvester models. Account-scoped like
--- wacrm's other tables — same `user_id` ownership column + RLS
--- policy shape as `contacts` (see 001_initial_schema.sql), modeled
--- on 037_parts.sql. The Telugu features column from the source
--- schema is dropped, same rationale as Task 7.
+-- Catalog module: tractor/harvester models. Per-user (owner-only)
+-- RLS: `auth.uid() = user_id`, modeled on 037_parts.sql. This
+-- deliberately diverges from the account-membership policies
+-- migration 017 applies to core tables — if team accounts are ever
+-- un-hidden, this table must be migrated to the account model. The
+-- Telugu features column from the source schema is dropped, same
+-- rationale as Task 7.
 --
 -- Idempotent. Safe to run multiple times.
 -- ============================================================

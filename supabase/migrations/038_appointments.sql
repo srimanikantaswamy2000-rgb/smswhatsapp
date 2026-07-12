@@ -2,11 +2,13 @@
 -- 038_appointments
 --
 -- Appointments module: booking calendar for the agri modules.
--- Ported from SMS-2 CRM and account-scoped like wacrm's other
--- tables — same `user_id` ownership column + RLS policy shape as
--- `contacts` (see 001_initial_schema.sql). Adds an optional link
--- to wacrm's `contacts` table so an appointment can be tied back
--- to a known contact.
+-- Ported from SMS-2 CRM. Per-user (owner-only) RLS:
+-- `auth.uid() = user_id`. This deliberately diverges from the
+-- account-membership policies migration 017 applies to core
+-- tables — if team accounts are ever un-hidden, this table must be
+-- migrated to the account model. Adds an optional link to wacrm's
+-- `contacts` table so an appointment can be tied back to a known
+-- contact.
 --
 -- Idempotent. Safe to run multiple times.
 -- ============================================================

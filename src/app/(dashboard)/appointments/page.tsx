@@ -64,16 +64,20 @@ export default function AppointmentsPage() {
   const fetchAppointments = useCallback(async () => {
     const seq = ++fetchSeq.current;
     setLoading(true);
-    const res = await fetch('/api/appointments');
-    if (seq !== fetchSeq.current) return; // superseded by a newer fetch
-    if (!res.ok) {
-      toast.error(t('toastFailedLoad'));
-      setLoading(false);
-      return;
+    try {
+      const res = await fetch('/api/appointments');
+      if (seq !== fetchSeq.current) return; // superseded by a newer fetch
+      if (!res.ok) {
+        toast.error(t('toastFailedLoad'));
+        return;
+      }
+      const { appointments: rows } = await res.json();
+      setAppointments(rows ?? []);
+    } catch {
+      if (seq === fetchSeq.current) toast.error(t('toastFailedLoad'));
+    } finally {
+      if (seq === fetchSeq.current) setLoading(false);
     }
-    const { appointments: rows } = await res.json();
-    setAppointments(rows ?? []);
-    setLoading(false);
   }, [t]);
 
   useEffect(() => {
@@ -100,40 +104,49 @@ export default function AppointmentsPage() {
     }
     setSaving(true);
 
-    const res = await fetch('/api/appointments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        phone: trimmedPhone,
-        customer_name: customerName.trim() || null,
-        requested_time: new Date(requestedTime).toISOString(),
-      }),
-    });
+    try {
+      const res = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: trimmedPhone,
+          customer_name: customerName.trim() || null,
+          requested_time: new Date(requestedTime).toISOString(),
+        }),
+      });
 
-    if (!res.ok) {
+      if (!res.ok) {
+        toast.error(t('toastFailedSave'));
+      } else {
+        toast.success(t('toastSaved'));
+        setFormOpen(false);
+        fetchAppointments();
+      }
+    } catch {
       toast.error(t('toastFailedSave'));
-    } else {
-      toast.success(t('toastSaved'));
-      setFormOpen(false);
-      fetchAppointments();
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   async function handleStatusChange(id: string, status: Appointment['status']) {
-    const res = await fetch(`/api/appointments/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/appointments/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) {
+        toast.error(t('toastFailedStatus'));
+        return;
+      }
+      toast.success(t('toastStatusUpdated'));
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status } : a)),
+      );
+    } catch {
       toast.error(t('toastFailedStatus'));
-      return;
     }
-    toast.success(t('toastStatusUpdated'));
-    setAppointments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status } : a)),
-    );
   }
 
   // Group appointments by calendar day, in the order they were

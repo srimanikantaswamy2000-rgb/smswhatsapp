@@ -54,16 +54,20 @@ export default function InventoryPage() {
     const params = new URLSearchParams();
     if (search.trim()) params.set('search', search.trim());
 
-    const res = await fetch(`/api/parts?${params.toString()}`);
-    if (seq !== fetchSeq.current) return; // superseded by a newer fetch
-    if (!res.ok) {
-      toast.error(t('toastFailedLoad'));
-      setLoading(false);
-      return;
+    try {
+      const res = await fetch(`/api/parts?${params.toString()}`);
+      if (seq !== fetchSeq.current) return; // superseded by a newer fetch
+      if (!res.ok) {
+        toast.error(t('toastFailedLoad'));
+        return;
+      }
+      const { parts: rows } = await res.json();
+      setParts(rows ?? []);
+    } catch {
+      if (seq === fetchSeq.current) toast.error(t('toastFailedLoad'));
+    } finally {
+      if (seq === fetchSeq.current) setLoading(false);
     }
-    const { parts: rows } = await res.json();
-    setParts(rows ?? []);
-    setLoading(false);
   }, [search, t]);
 
   useEffect(() => {
@@ -89,29 +93,34 @@ export default function InventoryPage() {
     }
     setSaving(true);
 
-    const res = await fetch('/api/parts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        part_number: trimmedPartNumber,
-        part_name: partName.trim() || null,
-        category: category.trim() || null,
-        price: price.trim() ? Number(price) : null,
-        stock_qty: stockQty.trim() ? Number(stockQty) : 0,
-        model_compatibility: compatibility.trim()
-          ? compatibility.split(',').map((s) => s.trim()).filter(Boolean)
-          : null,
-      }),
-    });
+    try {
+      const res = await fetch('/api/parts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          part_number: trimmedPartNumber,
+          part_name: partName.trim() || null,
+          category: category.trim() || null,
+          price: price.trim() ? Number(price) : null,
+          stock_qty: stockQty.trim() ? Number(stockQty) : 0,
+          model_compatibility: compatibility.trim()
+            ? compatibility.split(',').map((s) => s.trim()).filter(Boolean)
+            : null,
+        }),
+      });
 
-    if (!res.ok) {
+      if (!res.ok) {
+        toast.error(t('toastFailedSave'));
+      } else {
+        toast.success(t('toastSaved'));
+        setFormOpen(false);
+        fetchParts();
+      }
+    } catch {
       toast.error(t('toastFailedSave'));
-    } else {
-      toast.success(t('toastSaved'));
-      setFormOpen(false);
-      fetchParts();
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   return (

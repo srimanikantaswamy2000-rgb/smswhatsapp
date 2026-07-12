@@ -52,16 +52,20 @@ export default function CatalogPage() {
   const fetchModels = useCallback(async () => {
     const seq = ++fetchSeq.current;
     setLoading(true);
-    const res = await fetch('/api/catalog-models');
-    if (seq !== fetchSeq.current) return;
-    if (!res.ok) {
-      toast.error(t('toastFailedLoad'));
-      setLoading(false);
-      return;
+    try {
+      const res = await fetch('/api/catalog-models');
+      if (seq !== fetchSeq.current) return;
+      if (!res.ok) {
+        toast.error(t('toastFailedLoad'));
+        return;
+      }
+      const { models: rows } = await res.json();
+      setModels(rows ?? []);
+    } catch {
+      if (seq === fetchSeq.current) toast.error(t('toastFailedLoad'));
+    } finally {
+      if (seq === fetchSeq.current) setLoading(false);
     }
-    const { models: rows } = await res.json();
-    setModels(rows ?? []);
-    setLoading(false);
   }, [t]);
 
   useEffect(() => {
@@ -87,27 +91,32 @@ export default function CatalogPage() {
     }
     setSaving(true);
 
-    const res = await fetch('/api/catalog-models', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model_name: trimmedName,
-        type,
-        hp: hp.trim() ? Number(hp) : null,
-        price_min: priceMin.trim() ? Number(priceMin) : null,
-        price_max: priceMax.trim() ? Number(priceMax) : null,
-        features: features.trim() || null,
-      }),
-    });
+    try {
+      const res = await fetch('/api/catalog-models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model_name: trimmedName,
+          type,
+          hp: hp.trim() ? Number(hp) : null,
+          price_min: priceMin.trim() ? Number(priceMin) : null,
+          price_max: priceMax.trim() ? Number(priceMax) : null,
+          features: features.trim() || null,
+        }),
+      });
 
-    if (!res.ok) {
+      if (!res.ok) {
+        toast.error(t('toastFailedSave'));
+      } else {
+        toast.success(t('toastSaved'));
+        setFormOpen(false);
+        fetchModels();
+      }
+    } catch {
       toast.error(t('toastFailedSave'));
-    } else {
-      toast.success(t('toastSaved'));
-      setFormOpen(false);
-      fetchModels();
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   return (

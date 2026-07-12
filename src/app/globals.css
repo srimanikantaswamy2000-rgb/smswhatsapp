@@ -165,8 +165,8 @@ html[data-theme="teal"] {
   --primary: oklch(0.45 0.08 190);
   --primary-foreground: oklch(1 0 0);
   --primary-hover: oklch(0.4 0.08 190);
-  --primary-soft: oklch(0.9 0.04 190);
-  --primary-soft-2: oklch(0.95 0.02 190);
+  --primary-soft: oklch(0.45 0.08 190 / 0.12);
+  --primary-soft-2: oklch(0.45 0.08 190 / 0.22);
   --ring: oklch(0.45 0.08 190);
   --chart-1: oklch(0.72 0.12 300);
   --sidebar-primary: oklch(0.55 0.09 190);

@@ -228,7 +228,9 @@ export default function BroadcastDetailPage() {
         ? tWizard('method.customField')
         : audienceType === 'csv'
           ? tWizard('method.csv')
-          : tWizard('method.all');
+          : audienceType === 'contacts'
+            ? tWizard('method.contacts')
+            : tWizard('method.all');
 
   return (
     <div className="space-y-6">
