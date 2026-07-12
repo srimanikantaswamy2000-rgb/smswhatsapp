@@ -4924,3 +4924,105 @@ SELECT public.merge_duplicate_conversations();
 --    the winning row instead of compounding duplicates.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_account_contact
   ON conversations (account_id, contact_id);
+
+
+-- ===== 037_parts.sql =====
+-- ============================================================
+-- 037_parts
+--
+-- Inventory module: parts catalog for the agri modules. Ported
+-- from SMS-2 CRM and account-scoped like wacrm's other tables —
+-- same `user_id` ownership column + RLS policy shape as `contacts`
+-- (see 001_initial_schema.sql). The Telugu name column from the
+-- source schema (`part_name_telugu`) is dropped; not in scope for
+-- the rebuilt CRM.
+--
+-- Idempotent. Safe to run multiple times.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS parts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  part_number TEXT NOT NULL,
+  part_name TEXT,
+  model_compatibility TEXT[],
+  category TEXT,
+  price NUMERIC,
+  stock_qty INTEGER NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, part_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_parts_user_id ON parts(user_id);
+
+ALTER TABLE parts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage own parts" ON parts;
+CREATE POLICY "Users can manage own parts" ON parts FOR ALL USING (auth.uid() = user_id);
+
+DROP TRIGGER IF EXISTS set_updated_at ON parts;
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON parts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+
+-- ===== 038_appointments.sql =====
+-- ============================================================
+-- 038_appointments
+--
+-- Appointments module: booking calendar for the agri modules.
+-- Ported from SMS-2 CRM and account-scoped like wacrm's other
+-- tables — same `user_id` ownership column + RLS policy shape as
+-- `contacts` (see 001_initial_schema.sql). Adds an optional link
+-- to wacrm's `contacts` table so an appointment can be tied back
+-- to a known contact.
+--
+-- Idempotent. Safe to run multiple times.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS appointments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
+  phone TEXT NOT NULL,
+  customer_name TEXT,
+  requested_time TIMESTAMPTZ NOT NULL,
+  status TEXT NOT NULL DEFAULT 'booked'
+    CHECK (status IN ('booked', 'completed', 'no_show', 'cancelled')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS appointments_user_time_idx ON appointments (user_id, requested_time);
+
+ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage own appointments" ON appointments;
+CREATE POLICY "Users can manage own appointments" ON appointments FOR ALL USING (auth.uid() = user_id);
+
+
+-- ===== 039_catalog_models.sql =====
+-- ============================================================
+-- 039_catalog_models
+--
+-- Catalog module: tractor/harvester models. Account-scoped like
+-- wacrm's other tables — same `user_id` ownership column + RLS
+-- policy shape as `contacts` (see 001_initial_schema.sql), modeled
+-- on 037_parts.sql. The Telugu features column from the source
+-- schema is dropped, same rationale as Task 7.
+--
+-- Idempotent. Safe to run multiple times.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS catalog_models (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  model_name TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('tractor', 'harvester')),
+  hp INTEGER,
+  price_min NUMERIC,
+  price_max NUMERIC,
+  features TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_catalog_models_user_id ON catalog_models(user_id);
+
+ALTER TABLE catalog_models ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage own catalog models" ON catalog_models;
+CREATE POLICY "Users can manage own catalog models" ON catalog_models FOR ALL USING (auth.uid() = user_id);
