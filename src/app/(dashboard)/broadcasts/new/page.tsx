@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
@@ -23,14 +23,24 @@ const steps = [
 
 export default function NewBroadcastPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const t = useTranslations('Broadcasts.new');
   const { accountId } = useAuth();
   const { createAndSendBroadcast, isProcessing, progress } = useBroadcastSending();
 
+  // Re-target flow: /broadcasts/new?contacts=id1,id2 arrives from the
+  // broadcast detail page's Smart Segregation table. Preselect those
+  // contacts as the audience so the user lands straight on a ready
+  // "contacts" audience instead of re-picking from scratch.
+  const preselectedContactIds = (searchParams.get('contacts') ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+
   const [currentStep, setCurrentStep] = useState(0);
   const [template, setTemplate] = useState<MessageTemplate | null>(null);
   const [audience, setAudience] = useState<{
-    type: 'all' | 'tags' | 'custom_field' | 'csv';
+    type: 'all' | 'tags' | 'custom_field' | 'csv' | 'contacts';
     tagIds?: string[];
     customField?: {
       fieldId: string;
@@ -38,8 +48,13 @@ export default function NewBroadcastPage() {
       value: string;
     };
     csvContacts?: { phone: string; name?: string }[];
+    contactIds?: string[];
     excludeTagIds?: string[];
-  }>({ type: 'all' });
+  }>(
+    preselectedContactIds.length > 0
+      ? { type: 'contacts', contactIds: preselectedContactIds }
+      : { type: 'all' },
+  );
   const [variables, setVariables] = useState<
     Record<string, { type: 'static' | 'field' | 'custom_field'; value: string }>
   >({});
@@ -58,6 +73,7 @@ export default function NewBroadcastPage() {
           tagIds: audience.tagIds,
           customField: audience.customField,
           csvContacts: audience.csvContacts,
+          contactIds: audience.contactIds,
           excludeTagIds: audience.excludeTagIds,
         },
         variables,

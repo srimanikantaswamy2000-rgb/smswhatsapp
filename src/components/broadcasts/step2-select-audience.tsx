@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-type AudienceType = 'all' | 'tags' | 'custom_field' | 'csv';
+type AudienceType = 'all' | 'tags' | 'custom_field' | 'csv' | 'contacts';
 type CustomFieldOperator = 'is' | 'is_not' | 'contains';
 
 interface CustomFieldFilter {
@@ -30,6 +30,8 @@ interface AudienceConfig {
   tagIds?: string[];
   customField?: CustomFieldFilter;
   csvContacts?: { phone: string; name?: string }[];
+  /** Explicit contact ids — set when arriving via ?contacts= from the broadcast detail page's re-target flow. Not one of the four selectable audience-method cards. */
+  contactIds?: string[];
   excludeTagIds?: string[];
 }
 
@@ -169,6 +171,13 @@ export function Step2SelectAudience({
       ) {
         setEstimatedCount(audience.csvContacts.length);
         return;
+      } else if (
+        audience.type === 'contacts' &&
+        audience.contactIds &&
+        audience.contactIds.length > 0
+      ) {
+        setEstimatedCount(audience.contactIds.length);
+        return;
       } else {
         // Partially-configured audience — wait for the user to finish.
         setEstimatedCount(null);
@@ -246,7 +255,10 @@ export function Step2SelectAudience({
       audience.customField.value.length > 0) ||
     (audience.type === 'csv' &&
       audience.csvContacts &&
-      audience.csvContacts.length > 0);
+      audience.csvContacts.length > 0) ||
+    (audience.type === 'contacts' &&
+      audience.contactIds &&
+      audience.contactIds.length > 0);
 
   return (
     <div className="space-y-6">
@@ -304,6 +316,19 @@ export function Step2SelectAudience({
           );
         })}
       </div>
+
+      {audience.type === 'contacts' && (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+          <p className="text-sm font-medium text-foreground">
+            {t('selectAudience.method.contacts')}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t('selectAudience.contactsPreselected', {
+              count: (audience.contactIds ?? []).length,
+            })}
+          </p>
+        </div>
+      )}
 
       {audience.type === 'tags' && (
         <div className="rounded-xl border border-border bg-card/50 p-4">

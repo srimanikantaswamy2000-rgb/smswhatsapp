@@ -14,10 +14,12 @@ export interface CustomFieldFilter {
 }
 
 export interface AudienceConfig {
-  type: 'all' | 'tags' | 'custom_field' | 'csv';
+  type: 'all' | 'tags' | 'custom_field' | 'csv' | 'contacts';
   tagIds?: string[];
   customField?: CustomFieldFilter;
   csvContacts?: { phone: string; name?: string }[];
+  /** Explicit contact ids — used to re-target a hand-picked set of recipients (e.g. from the broadcast detail page's Smart Segregation table). */
+  contactIds?: string[];
   /** Contacts carrying any of these tags are subtracted from the result. */
   excludeTagIds?: string[];
 }
@@ -189,6 +191,17 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
       contacts = await resolveCustomFieldAudience(supabase, audience.customField);
     } else if (audience.type === 'csv' && audience.csvContacts) {
       contacts = await upsertCsvContacts(supabase, audience.csvContacts);
+    } else if (
+      audience.type === 'contacts' &&
+      audience.contactIds &&
+      audience.contactIds.length > 0
+    ) {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('*')
+        .in('id', audience.contactIds);
+      if (error) throw new Error(`Failed to fetch contacts: ${error.message}`);
+      contacts = data ?? [];
     }
 
     // Apply exclude tags (works across all contact-derived audience
