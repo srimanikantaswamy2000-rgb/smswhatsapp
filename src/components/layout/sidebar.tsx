@@ -20,6 +20,7 @@ import {
   Radio,
   Settings,
   Shield,
+  Tractor,
   User,
   UserCog,
   Users,
@@ -102,6 +103,7 @@ const navItems: NavItem[] = [
   { href: "/agents", labelKey: "aiAgents", icon: Bot },
   { href: "/appointments", labelKey: "appointments", icon: CalendarDays },
   { href: "/inventory", labelKey: "inventory", icon: Package },
+  { href: "/catalog", labelKey: "catalog", icon: Tractor },
 ];
 
 const bottomNavItems = [

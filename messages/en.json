@@ -27,6 +27,7 @@
     "aiAgents": "AI Agents",
     "appointments": "Appointments",
     "inventory": "Inventory",
+    "catalog": "Catalog",
     "settings": "Settings",
     "beta": "Beta",
     "unreadConversations": "{count} unread {count, plural, =1 {conversation} other {conversations}}",
@@ -512,6 +513,38 @@
       "toastFailedLoad": "Failed to load parts",
       "toastFailedSave": "Failed to save part",
       "toastSaved": "Part saved"
+    }
+  },
+  "Catalog": {
+    "page": {
+      "title": "Catalog",
+      "subtitle": "{count, plural, =1 {# model} other {# models}}",
+      "subtitleZero": "No models yet",
+      "addModelBtn": "Add Model",
+      "loading": "Loading models…",
+      "noModelsYet": "No models yet",
+      "type": {
+        "tractor": "Tractor",
+        "harvester": "Harvester"
+      },
+      "hpValue": "{hp} HP",
+      "hpUnknown": "HP unknown",
+      "addModelTitle": "Add Model",
+      "addModelDesc": "Add a new tractor or harvester model to your catalog.",
+      "form": {
+        "modelName": "Model Name",
+        "type": "Type",
+        "hp": "HP",
+        "priceMin": "Price Min",
+        "priceMax": "Price Max",
+        "features": "Features"
+      },
+      "cancel": "Cancel",
+      "save": "Save",
+      "modelNameRequired": "Model name is required",
+      "toastFailedLoad": "Failed to load models",
+      "toastFailedSave": "Failed to save model",
+      "toastSaved": "Model saved"
     }
   },
   "Appointments": {
