@@ -4931,11 +4931,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_account_contact
 -- 037_parts
 --
 -- Inventory module: parts catalog for the agri modules. Ported
--- from SMS-2 CRM and account-scoped like wacrm's other tables —
--- same `user_id` ownership column + RLS policy shape as `contacts`
--- (see 001_initial_schema.sql). The Telugu name column from the
--- source schema (`part_name_telugu`) is dropped; not in scope for
--- the rebuilt CRM.
+-- from SMS-2 CRM. Per-user (owner-only) RLS: `auth.uid() = user_id`.
+-- This deliberately diverges from the account-membership policies
+-- migration 017 applies to core tables — if team accounts are ever
+-- un-hidden, this table must be migrated to the account model.
+-- The Telugu name column from the source schema
+-- (`part_name_telugu`) is dropped; not in scope for the rebuilt
+-- CRM.
 --
 -- Idempotent. Safe to run multiple times.
 -- ============================================================
@@ -4968,11 +4970,13 @@ CREATE TRIGGER set_updated_at BEFORE UPDATE ON parts FOR EACH ROW EXECUTE FUNCTI
 -- 038_appointments
 --
 -- Appointments module: booking calendar for the agri modules.
--- Ported from SMS-2 CRM and account-scoped like wacrm's other
--- tables — same `user_id` ownership column + RLS policy shape as
--- `contacts` (see 001_initial_schema.sql). Adds an optional link
--- to wacrm's `contacts` table so an appointment can be tied back
--- to a known contact.
+-- Ported from SMS-2 CRM. Per-user (owner-only) RLS:
+-- `auth.uid() = user_id`. This deliberately diverges from the
+-- account-membership policies migration 017 applies to core
+-- tables — if team accounts are ever un-hidden, this table must be
+-- migrated to the account model. Adds an optional link to wacrm's
+-- `contacts` table so an appointment can be tied back to a known
+-- contact.
 --
 -- Idempotent. Safe to run multiple times.
 -- ============================================================
@@ -5000,11 +5004,13 @@ CREATE POLICY "Users can manage own appointments" ON appointments FOR ALL USING 
 -- ============================================================
 -- 039_catalog_models
 --
--- Catalog module: tractor/harvester models. Account-scoped like
--- wacrm's other tables — same `user_id` ownership column + RLS
--- policy shape as `contacts` (see 001_initial_schema.sql), modeled
--- on 037_parts.sql. The Telugu features column from the source
--- schema is dropped, same rationale as Task 7.
+-- Catalog module: tractor/harvester models. Per-user (owner-only)
+-- RLS: `auth.uid() = user_id`, modeled on 037_parts.sql. This
+-- deliberately diverges from the account-membership policies
+-- migration 017 applies to core tables — if team accounts are ever
+-- un-hidden, this table must be migrated to the account model. The
+-- Telugu features column from the source schema is dropped, same
+-- rationale as Task 7.
 --
 -- Idempotent. Safe to run multiple times.
 -- ============================================================
