@@ -5043,3 +5043,306 @@ CREATE POLICY "Users can manage own catalog models" ON catalog_models FOR ALL US
 -- Plain text by design: it is an endpoint, not a secret.
 
 ALTER TABLE ai_configs ADD COLUMN IF NOT EXISTS base_url TEXT;
+
+
+-- ===== 041_contact_geo.sql =====
+-- 041_contact_geo
+--
+-- District + mandal as first-class contact fields, so broadcasts can
+-- target them with dropdowns instead of free-text tags.
+--
+-- Why columns and not tags
+--   The Excel import wrote `district:X` / `mandal:Y` tags. Tags can't
+--   drive a dropdown (no distinct list without a join), can't be
+--   indexed for a geo filter, and mix administrative geography in with
+--   marketing labels. Tags remain, but purely as optional labels.
+--
+-- Why the values are (re)derived from the mandal in app code
+--   The dealer's spreadsheets predate the 4 Apr 2022 AP reorganisation:
+--   they record the Kovvur revenue division (Undrajavaram, Nidadavole,
+--   Kovvur, Chagallu, Peravali, Tallapudi, Gopalapuram, Devarapalle,
+--   Nallajerla) as "West Godavari", but those mandals are now EAST
+--   Godavari. 97 of the dealer's contacts are affected. Trusting the
+--   imported district string would silently mis-target ~23% of the
+--   mapped base, so the backfill derives district from the canonical
+--   mandal via `src/lib/geo/ap-districts.ts` rather than copying the
+--   stale tag.
+
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS district TEXT;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS mandal   TEXT;
+
+-- Partial indexes: the geo filter always constrains by account first,
+-- and only non-null rows are ever targeted.
+CREATE INDEX IF NOT EXISTS idx_contacts_account_district
+  ON contacts(account_id, district) WHERE district IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_contacts_account_mandal
+  ON contacts(account_id, mandal) WHERE mandal IS NOT NULL;
+
+
+-- ===== 042_broadcast_queue.sql =====
+-- 042_broadcast_queue
+--
+-- Makes broadcasts server-driven, duplicate-proof and rate-limited.
+--
+-- Three changes:
+--
+-- 1. UNIQUE (broadcast_id, contact_id)
+--    The only real guarantee that a customer can't receive the same
+--    campaign twice. A retry, a double-click, two open tabs or two
+--    overlapping cron runs are all defeated in the database rather
+--    than by UI logic.
+--
+-- 2. 'queued' / 'paused' statuses
+--    WhatsApp caps business-initiated conversations per rolling 24h
+--    (a new number starts at 250). A campaign larger than the quota
+--    can't finish today, so it parks in 'queued' and the cron drains
+--    it over subsequent days. 'paused' lets a human stop a run.
+--
+-- 3. daily_send_limit column
+--    Meta raises the cap automatically as the number earns trust
+--    (250 -> 1k -> 10k -> unlimited). A column means raising it is a
+--    settings change, not a redeploy.
+
+-- 1. No duplicate recipients within a campaign ---------------------
+-- Defensive: collapse any pre-existing duplicates before the index,
+-- keeping the earliest row (it holds the real send history).
+DELETE FROM broadcast_recipients a
+USING broadcast_recipients b
+WHERE a.broadcast_id = b.broadcast_id
+  AND a.contact_id   = b.contact_id
+  AND a.ctid > b.ctid;
+
+CREATE UNIQUE INDEX IF NOT EXISTS broadcast_recipients_unique_contact
+  ON broadcast_recipients(broadcast_id, contact_id);
+
+-- 2. Queue-aware statuses -----------------------------------------
+ALTER TABLE broadcasts DROP CONSTRAINT IF EXISTS broadcasts_status_check;
+ALTER TABLE broadcasts ADD CONSTRAINT broadcasts_status_check
+  CHECK (status IN ('draft','scheduled','queued','sending','paused','sent','failed'));
+
+-- 3. Per-account daily cap ----------------------------------------
+ALTER TABLE broadcasts
+  ADD COLUMN IF NOT EXISTS daily_send_limit INTEGER NOT NULL DEFAULT 250;
+
+-- Drives both the rolling-24h quota count and the cron's scan for
+-- work still to do.
+CREATE INDEX IF NOT EXISTS idx_broadcast_recipients_sent_at
+  ON broadcast_recipients(sent_at) WHERE sent_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_broadcast_recipients_pending
+  ON broadcast_recipients(broadcast_id) WHERE status = 'pending';
+
+
+-- ===== 043_broadcast_rpcs.sql =====
+-- 043_broadcast_rpcs
+--
+-- Server-side plumbing for geo-targeted, quota-limited broadcasts.
+--
+--   resolve_broadcast_audience  — who gets it (district/mandal first,
+--                                 tags optional), counted server-side
+--   broadcast_quota_remaining   — how many sends the 24h window allows
+--   claim_broadcast_recipients  — atomically take the next N to send
+--
+-- Why RPCs rather than client queries
+--   The wizard previously resolved the audience in the browser and
+--   passed ids to `.in('id', ids)`. PostgREST silently caps that around
+--   1000 rows, so both the count and the send list quietly went wrong
+--   as the contact base grew. Same reasoning as 025_filter_contacts_by_tags.
+--
+-- Idempotent — safe to re-run.
+
+-- ============================================================
+-- Audience: geo-first, tags optional
+--
+-- Filters compose with AND; an empty/NULL array means "no constraint
+-- from this dimension". So:
+--   districts=['West Godavari'], mandals=[]            -> whole district
+--   districts=['East Godavari'], mandals=['Kovvur']    -> one mandal
+--   districts=[], mandals=[], tags=[]                  -> all contacts
+-- Only contacts with a usable phone are ever returned — a broadcast to
+-- a row without a phone can only fail.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.resolve_broadcast_audience(
+  p_account_id UUID,
+  p_districts TEXT[] DEFAULT NULL,
+  p_mandals TEXT[] DEFAULT NULL,
+  p_tag_ids UUID[] DEFAULT NULL,
+  p_exclude_tag_ids UUID[] DEFAULT NULL,
+  p_limit INT DEFAULT NULL,
+  p_offset INT DEFAULT 0
+)
+RETURNS TABLE (contact contacts, total_count BIGINT)
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public
+AS $$
+  WITH matched AS (
+    SELECT c.id, c.created_at
+    FROM contacts c
+    WHERE c.account_id = p_account_id
+      AND c.phone IS NOT NULL
+      AND c.phone <> ''
+      AND (p_districts IS NULL OR cardinality(p_districts) = 0
+           OR c.district = ANY(p_districts))
+      AND (p_mandals IS NULL OR cardinality(p_mandals) = 0
+           OR c.mandal = ANY(p_mandals))
+      -- Optional include-tags: contact must carry ANY of them.
+      AND (p_tag_ids IS NULL OR cardinality(p_tag_ids) = 0 OR EXISTS (
+            SELECT 1 FROM contact_tags ct
+            WHERE ct.contact_id = c.id AND ct.tag_id = ANY(p_tag_ids)))
+      -- Optional exclude-tags: contact must carry NONE of them.
+      AND (p_exclude_tag_ids IS NULL OR cardinality(p_exclude_tag_ids) = 0
+           OR NOT EXISTS (
+            SELECT 1 FROM contact_tags ct
+            WHERE ct.contact_id = c.id AND ct.tag_id = ANY(p_exclude_tag_ids)))
+  ),
+  page AS (
+    -- count(*) OVER() runs before LIMIT, so it is the full audience
+    -- size even when the caller only wants a preview page. Passing
+    -- p_limit = NULL returns everyone (the send path).
+    SELECT id, count(*) OVER() AS total_count
+    FROM matched
+    ORDER BY created_at DESC, id
+    LIMIT p_limit OFFSET p_offset
+  )
+  SELECT c AS contact, page.total_count
+  FROM page
+  JOIN contacts c ON c.id = page.id
+  ORDER BY c.created_at DESC, c.id;
+$$;
+
+ALTER FUNCTION public.resolve_broadcast_audience(UUID, TEXT[], TEXT[], UUID[], UUID[], INT, INT) OWNER TO postgres;
+REVOKE ALL ON FUNCTION public.resolve_broadcast_audience(UUID, TEXT[], TEXT[], UUID[], UUID[], INT, INT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.resolve_broadcast_audience(UUID, TEXT[], TEXT[], UUID[], UUID[], INT, INT) TO authenticated, service_role;
+
+-- ============================================================
+-- Distinct geo values for the wizard's dropdowns.
+-- Returns every district the account actually has contacts in, with
+-- its mandals — one round trip, so the mandal list can filter as soon
+-- as a district is picked.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.contact_geo_options(p_account_id UUID)
+RETURNS TABLE (district TEXT, mandal TEXT, contact_count BIGINT)
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public
+AS $$
+  SELECT c.district, c.mandal, count(*) AS contact_count
+  FROM contacts c
+  WHERE c.account_id = p_account_id
+    AND c.district IS NOT NULL
+    AND c.phone IS NOT NULL
+    AND c.phone <> ''
+  GROUP BY c.district, c.mandal
+  ORDER BY c.district, c.mandal NULLS LAST;
+$$;
+
+ALTER FUNCTION public.contact_geo_options(UUID) OWNER TO postgres;
+REVOKE ALL ON FUNCTION public.contact_geo_options(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.contact_geo_options(UUID) TO authenticated;
+
+-- ============================================================
+-- Rolling 24h quota.
+--
+-- Counts template sends across the WHOLE account (not per broadcast),
+-- because WhatsApp's cap is per phone number — two campaigns running
+-- together must share the 250, not get 250 each.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.broadcast_quota_remaining(
+  p_account_id UUID,
+  p_daily_limit INT DEFAULT 250
+)
+RETURNS INT
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT GREATEST(
+    0,
+    p_daily_limit - (
+      SELECT count(*)::INT
+      FROM broadcast_recipients r
+      JOIN broadcasts b ON b.id = r.broadcast_id
+      WHERE b.account_id = p_account_id
+        AND r.sent_at IS NOT NULL
+        AND r.sent_at > now() - interval '24 hours'
+    )
+  );
+$$;
+
+ALTER FUNCTION public.broadcast_quota_remaining(UUID, INT) OWNER TO postgres;
+REVOKE ALL ON FUNCTION public.broadcast_quota_remaining(UUID, INT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.broadcast_quota_remaining(UUID, INT) TO authenticated, service_role;
+
+-- ============================================================
+-- Atomically claim the next N pending recipients.
+--
+-- FOR UPDATE SKIP LOCKED is what makes the cron safe to overlap: two
+-- concurrent runs each take a disjoint set instead of both grabbing
+-- the same rows and double-sending. Mirrors `claim_ai_reply_slot`.
+--
+-- Claimed rows flip to 'sending'; the caller MUST settle each one to
+-- 'sent' or 'failed'. A row stuck in 'sending' (process died mid-send)
+-- is recovered by `requeue_stale_broadcast_sends` below.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.claim_broadcast_recipients(
+  p_broadcast_id UUID,
+  p_limit INT
+)
+RETURNS TABLE (recipient_id UUID, contact_id UUID)
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY
+  WITH claimed AS (
+    SELECT r.id
+    FROM broadcast_recipients r
+    WHERE r.broadcast_id = p_broadcast_id
+      AND r.status = 'pending'
+    ORDER BY r.created_at
+    LIMIT GREATEST(p_limit, 0)
+    FOR UPDATE SKIP LOCKED
+  )
+  UPDATE broadcast_recipients r
+  SET status = 'sending'
+  FROM claimed
+  WHERE r.id = claimed.id
+  RETURNING r.id, r.contact_id;
+END;
+$$;
+
+ALTER FUNCTION public.claim_broadcast_recipients(UUID, INT) OWNER TO postgres;
+REVOKE ALL ON FUNCTION public.claim_broadcast_recipients(UUID, INT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.claim_broadcast_recipients(UUID, INT) TO service_role;
+
+-- ============================================================
+-- Recover rows abandoned in 'sending' (deploy mid-run, crash, timeout).
+-- Without this a campaign could stall forever with rows nothing owns.
+-- 15 minutes is comfortably longer than any single send attempt.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.requeue_stale_broadcast_sends()
+RETURNS INT
+LANGUAGE sql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH stale AS (
+    UPDATE broadcast_recipients
+    SET status = 'pending'
+    WHERE status = 'sending'
+      AND created_at < now() - interval '15 minutes'
+      AND sent_at IS NULL
+    RETURNING 1
+  )
+  SELECT count(*)::INT FROM stale;
+$$;
+
+ALTER FUNCTION public.requeue_stale_broadcast_sends() OWNER TO postgres;
+REVOKE ALL ON FUNCTION public.requeue_stale_broadcast_sends() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.requeue_stale_broadcast_sends() TO service_role;
