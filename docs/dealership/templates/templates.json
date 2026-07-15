@@ -1,0 +1,193 @@
+{
+  "_readme": "Ready-to-submit WhatsApp template drafts for Sri Manikanta Swamy Agri Farm. Each entry matches the CRM's TemplatePayload shape — POST one to /api/whatsapp/templates/submit (or create it in Settings → Templates) once the new WhatsApp number is connected. Names: lowercase+underscores per Meta rules. Languages: en + te pairs. Phone button number is a placeholder — replace before submitting.",
+  "templates": [
+    {
+      "name": "seasonal_promo_en",
+      "category": "Marketing",
+      "language": "en",
+      "header_type": "text",
+      "header_content": "This season, harvest more 🚜",
+      "body_text": "Namaste {{1}}! Season is coming — Sri Manikanta Swamy Agri Farm (Authorized Kubota Dealer, Tadepalligudem) has special season support on {{2}}. Genuine Kubota machines, finance arranged, free field demo at your village. Reply and our team will call you.",
+      "footer_text": "Kubota · Sales · Service · Spares",
+      "buttons": [
+        { "type": "QUICK_REPLY", "text": "Send details" },
+        { "type": "QUICK_REPLY", "text": "Book free demo" },
+        { "type": "PHONE_NUMBER", "text": "Call showroom", "phone_number": "+919999999999" }
+      ],
+      "sample_values": { "header": [], "body": ["Ramu garu", "Kubota MU4501 tractors"] }
+    },
+    {
+      "name": "seasonal_promo_te",
+      "category": "Marketing",
+      "language": "te",
+      "header_type": "text",
+      "header_content": "ఈ సీజన్‌లో ఎక్కువ పంట 🚜",
+      "body_text": "నమస్తే {{1}}! సీజన్ వస్తోంది — శ్రీ మాణిక్యంత స్వామి అగ్రి ఫార్మ్ (అధీకృత కుబోటా డీలర్, తాడేపల్లిగూడెం) వద్ద {{2}} పై ప్రత్యేక సీజన్ ఆఫర్లు. అసలైన కుబోటా యంత్రాలు, ఫైనాన్స్ సౌకర్యం, మీ ఊరిలోనే ఉచిత డెమో. రిప్లై చేయండి — మా టీమ్ మీకు కాల్ చేస్తుంది.",
+      "footer_text": "కుబోటా · అమ్మకాలు · సర్వీస్ · స్పేర్స్",
+      "buttons": [
+        { "type": "QUICK_REPLY", "text": "వివరాలు పంపండి" },
+        { "type": "QUICK_REPLY", "text": "ఉచిత డెమో బుక్" },
+        { "type": "PHONE_NUMBER", "text": "షోరూమ్ కాల్", "phone_number": "+919999999999" }
+      ],
+      "sample_values": { "header": [], "body": ["రాము గారు", "కుబోటా MU4501 ట్రాక్టర్లు"] }
+    },
+    {
+      "name": "new_launch_en",
+      "category": "Marketing",
+      "language": "en",
+      "header_type": "image",
+      "header_media_url": "REPLACE_WITH_PUBLIC_IMAGE_URL",
+      "body_text": "New arrival at our showroom! {{1}} is now available at Sri Manikanta Swamy Agri Farm, Tadepalligudem. Be among the first to see it working — book a free field demo or visit us Mon–Sat, 9 AM–6 PM.",
+      "footer_text": "Authorized Kubota Dealer",
+      "buttons": [
+        { "type": "QUICK_REPLY", "text": "Book demo" },
+        { "type": "QUICK_REPLY", "text": "Price details" }
+      ],
+      "sample_values": { "body": ["Kubota MU5502 55 HP"] }
+    },
+    {
+      "name": "new_launch_te",
+      "category": "Marketing",
+      "language": "te",
+      "header_type": "image",
+      "header_media_url": "REPLACE_WITH_PUBLIC_IMAGE_URL",
+      "body_text": "మా షోరూమ్‌కు కొత్త రాక! {{1}} ఇప్పుడు శ్రీ మాణిక్యంత స్వామి అగ్రి ఫార్మ్, తాడేపల్లిగూడెంలో అందుబాటులో ఉంది. పని చేస్తుండగా చూడండి — ఉచిత పొల డెమో బుక్ చేయండి లేదా సోమ–శని ఉ.9–సా.6 మధ్య రండి.",
+      "footer_text": "అధీకృత కుబోటా డీలర్",
+      "buttons": [
+        { "type": "QUICK_REPLY", "text": "డెమో బుక్ చేయండి" },
+        { "type": "QUICK_REPLY", "text": "ధర వివరాలు" }
+      ],
+      "sample_values": { "body": ["కుబోటా MU5502 55 HP"] }
+    },
+    {
+      "name": "harvester_promo_en",
+      "category": "Marketing",
+      "language": "en",
+      "header_type": "text",
+      "header_content": "Harvest season is near 🌾",
+      "body_text": "Namaste {{1}}! Don't wait in rental queues this harvest. Kubota DC-68G (68 HP) and DC-99 Harvesking (98 HP) combine harvesters are available at Sri Manikanta Swamy Agri Farm — crawler tracks for wet Godavari fields, 5.75–10 acres/day, finance support available. Own the machine that earns every season.",
+      "footer_text": "Free demo · Finance · Genuine spares",
+      "buttons": [
+        { "type": "QUICK_REPLY", "text": "Harvester details" },
+        { "type": "QUICK_REPLY", "text": "EMI options" },
+        { "type": "PHONE_NUMBER", "text": "Call now", "phone_number": "+919999999999" }
+      ],
+      "sample_values": { "header": [], "body": ["Ramu garu"] }
+    },
+    {
+      "name": "harvester_promo_te",
+      "category": "Marketing",
+      "language": "te",
+      "header_type": "text",
+      "header_content": "కోత సీజన్ దగ్గరపడింది 🌾",
+      "body_text": "నమస్తే {{1}}! ఈ కోతకు అద్దె యంత్రాల క్యూలో ఆగకండి. కుబోటా DC-68G (68 HP), DC-99 హార్వెస్‌కింగ్ (98 HP) కంబైన్ హార్వెస్టర్లు శ్రీ మాణిక్యంత స్వామి అగ్రి ఫార్మ్‌లో అందుబాటులో — బురద పొలాలకు క్రాలర్ ట్రాక్స్, రోజుకు 5.75–10 ఎకరాలు, ఫైనాన్స్ సౌకర్యం. ప్రతి సీజన్ సంపాదించే యంత్రం సొంతం చేసుకోండి.",
+      "footer_text": "ఉచిత డెమో · ఫైనాన్స్ · అసలైన స్పేర్స్",
+      "buttons": [
+        { "type": "QUICK_REPLY", "text": "హార్వెస్టర్ వివరాలు" },
+        { "type": "QUICK_REPLY", "text": "EMI వివరాలు" },
+        { "type": "PHONE_NUMBER", "text": "కాల్ చేయండి", "phone_number": "+919999999999" }
+      ],
+      "sample_values": { "header": [], "body": ["రాము గారు"] }
+    },
+    {
+      "name": "offer_generic_en",
+      "category": "Marketing",
+      "language": "en",
+      "body_text": "Namaste {{1}}! Limited-period offer at Sri Manikanta Swamy Agri Farm: {{2}}. Offer valid till {{3}}. Visit our showroom (Mon–Sat, 9–6) opposite Indian Oil Petrol Bunk, Alampuram, Tadepalligudem, or reply here for details.",
+      "footer_text": "T&C apply — confirm at showroom",
+      "buttons": [
+        { "type": "QUICK_REPLY", "text": "I am interested" },
+        { "type": "QUICK_REPLY", "text": "Stop offers" }
+      ],
+      "sample_values": { "body": ["Ramu garu", "special exchange bonus on old tractors", "31 August"] }
+    },
+    {
+      "name": "offer_generic_te",
+      "category": "Marketing",
+      "language": "te",
+      "body_text": "నమస్తే {{1}}! శ్రీ మాణిక్యంత స్వామి అగ్రి ఫార్మ్‌లో పరిమిత కాల ఆఫర్: {{2}}. ఆఫర్ {{3}} వరకు. షోరూమ్‌కు రండి (సోమ–శని, 9–6) — ఇండియన్ ఆయిల్ బంక్ ఎదురుగా, ఆలంపురం, తాడేపల్లిగూడెం. వివరాలకు రిప్లై చేయండి.",
+      "footer_text": "షరతులు వర్తిస్తాయి",
+      "buttons": [
+        { "type": "QUICK_REPLY", "text": "నాకు ఆసక్తి ఉంది" },
+        { "type": "QUICK_REPLY", "text": "ఆఫర్లు ఆపండి" }
+      ],
+      "sample_values": { "body": ["రాము గారు", "పాత ట్రాక్టర్ ఎక్స్చేంజ్ బోనస్", "ఆగస్టు 31"] }
+    },
+    {
+      "name": "appointment_reminder_en",
+      "category": "Utility",
+      "language": "en",
+      "body_text": "Namaste {{1}}, this is a reminder of your visit to Sri Manikanta Swamy Agri Farm on {{2}} at {{3}}. Address: Opposite Indian Oil Petrol Bunk, Alampuram, Tadepalligudem. Reply here if you need to change the time.",
+      "footer_text": "Mon–Sat · 9 AM–6 PM",
+      "buttons": [
+        { "type": "QUICK_REPLY", "text": "Confirm visit" },
+        { "type": "QUICK_REPLY", "text": "Reschedule" }
+      ],
+      "sample_values": { "body": ["Ramu garu", "Saturday 19 July", "11:00 AM"] }
+    },
+    {
+      "name": "appointment_reminder_te",
+      "category": "Utility",
+      "language": "te",
+      "body_text": "నమస్తే {{1}}, {{2}} న {{3}} కి శ్రీ మాణిక్యంత స్వామి అగ్రి ఫార్మ్ షోరూమ్ సందర్శన గుర్తు చేస్తున్నాము. చిరునామా: ఇండియన్ ఆయిల్ బంక్ ఎదురుగా, ఆలంపురం, తాడేపల్లిగూడెం. సమయం మార్చాలంటే రిప్లై చేయండి.",
+      "footer_text": "సోమ–శని · ఉ.9–సా.6",
+      "buttons": [
+        { "type": "QUICK_REPLY", "text": "వస్తాను" },
+        { "type": "QUICK_REPLY", "text": "సమయం మార్చాలి" }
+      ],
+      "sample_values": { "body": ["రాము గారు", "శనివారం జూలై 19", "ఉదయం 11:00"] }
+    },
+    {
+      "name": "visit_followup_en",
+      "category": "Utility",
+      "language": "en",
+      "body_text": "Namaste {{1}}, thank you for visiting Sri Manikanta Swamy Agri Farm! Any questions about the {{2}} you saw — price, finance, insurance, TR/PR — just reply here. We can also arrange a free demo on your own field.",
+      "footer_text": "Authorized Kubota Dealer · Tadepalligudem",
+      "buttons": [
+        { "type": "QUICK_REPLY", "text": "Finance details" },
+        { "type": "QUICK_REPLY", "text": "Book field demo" }
+      ],
+      "sample_values": { "body": ["Ramu garu", "Kubota MU4501"] }
+    },
+    {
+      "name": "visit_followup_te",
+      "category": "Utility",
+      "language": "te",
+      "body_text": "నమస్తే {{1}}, శ్రీ మాణిక్యంత స్వామి అగ్రి ఫార్మ్‌కు వచ్చినందుకు ధన్యవాదాలు! మీరు చూసిన {{2}} గురించి ఏవైనా ప్రశ్నలు — ధర, ఫైనాన్స్, ఇన్సూరెన్స్, TR/PR — ఇక్కడే రిప్లై చేయండి. మీ పొలంలోనే ఉచిత డెమో కూడా ఏర్పాటు చేస్తాము.",
+      "footer_text": "అధీకృత కుబోటా డీలర్ · తాడేపల్లిగూడెం",
+      "buttons": [
+        { "type": "QUICK_REPLY", "text": "ఫైనాన్స్ వివరాలు" },
+        { "type": "QUICK_REPLY", "text": "పొల డెమో బుక్" }
+      ],
+      "sample_values": { "body": ["రాము గారు", "కుబోటా MU4501"] }
+    },
+    {
+      "name": "parts_payment_en",
+      "category": "Utility",
+      "language": "en",
+      "header_type": "image",
+      "header_media_url": "REPLACE_WITH_PAYMENT_QR_IMAGE_URL",
+      "body_text": "Namaste {{1}}, your spare part order is ready: {{2}} (Part No. {{3}}), amount ₹{{4}}. Scan the QR above to pay, or reply 'bank' for account details. Your order is packed after our team verifies the payment.",
+      "footer_text": "Genuine Kubota spares",
+      "buttons": [
+        { "type": "QUICK_REPLY", "text": "Payment done" },
+        { "type": "QUICK_REPLY", "text": "Bank details" }
+      ],
+      "sample_values": { "body": ["Ramu garu", "Oil filter DC-68G", "HH164-32430", "850"] }
+    },
+    {
+      "name": "parts_payment_te",
+      "category": "Utility",
+      "language": "te",
+      "header_type": "image",
+      "header_media_url": "REPLACE_WITH_PAYMENT_QR_IMAGE_URL",
+      "body_text": "నమస్తే {{1}}, మీ స్పేర్ పార్ట్ ఆర్డర్ సిద్ధం: {{2}} (పార్ట్ నం. {{3}}), మొత్తం ₹{{4}}. పైన ఉన్న QR స్కాన్ చేసి చెల్లించండి, లేదా బ్యాంక్ వివరాల కోసం 'bank' అని రిప్లై చేయండి. చెల్లింపు నిర్ధారణ అయ్యాక ఆర్డర్ ప్యాక్ అవుతుంది.",
+      "footer_text": "అసలైన కుబోటా స్పేర్స్",
+      "buttons": [
+        { "type": "QUICK_REPLY", "text": "చెల్లించాను" },
+        { "type": "QUICK_REPLY", "text": "బ్యాంక్ వివరాలు" }
+      ],
+      "sample_values": { "body": ["రాము గారు", "ఆయిల్ ఫిల్టర్ DC-68G", "HH164-32430", "850"] }
+    }
+  ]
+}
