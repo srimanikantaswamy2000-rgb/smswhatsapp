@@ -5032,3 +5032,14 @@ CREATE INDEX IF NOT EXISTS idx_catalog_models_user_id ON catalog_models(user_id)
 ALTER TABLE catalog_models ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can manage own catalog models" ON catalog_models;
 CREATE POLICY "Users can manage own catalog models" ON catalog_models FOR ALL USING (auth.uid() = user_id);
+
+
+-- ===== 040_ai_base_url.sql =====
+-- 040_ai_base_url
+--
+-- Optional OpenAI-compatible gateway base URL on ai_configs (e.g.
+-- https://api.aicredits.in/v1). Null means the provider's default
+-- endpoint. Only the OpenAI adapter honours it; Anthropic ignores it.
+-- Plain text by design: it is an endpoint, not a secret.
+
+ALTER TABLE ai_configs ADD COLUMN IF NOT EXISTS base_url TEXT;

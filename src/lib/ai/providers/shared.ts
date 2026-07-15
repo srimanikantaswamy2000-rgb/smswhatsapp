@@ -10,6 +10,9 @@ export interface ProviderArgs {
   systemPrompt: string
   messages: ChatMessage[]
   timeoutMs: number
+  /** Optional OpenAI-compatible gateway base URL (e.g. aicredits.in).
+   *  Only honoured by the OpenAI adapter; Anthropic ignores it. */
+  baseUrl?: string | null
 }
 
 /**

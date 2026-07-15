@@ -25,11 +25,14 @@ interface OpenAiResponse {
  * in `generateReply`).
  */
 export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult> {
-  const { apiKey, model, systemPrompt, messages, timeoutMs } = args
+  const { apiKey, model, systemPrompt, messages, timeoutMs, baseUrl } = args
+  const url = baseUrl
+    ? `${baseUrl.replace(/\/+$/, '')}/chat/completions`
+    : OPENAI_URL
 
   let res: Response
   try {
-    res = await fetch(OPENAI_URL, {
+    res = await fetch(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,

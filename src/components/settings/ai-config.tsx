@@ -62,6 +62,7 @@ export function AiConfig() {
   const [provider, setProvider] = useState<AiProvider>('openai');
   const [model, setModel] = useState(AI_PROVIDER_DEFAULT_MODEL.openai);
   const [apiKey, setApiKey] = useState('');
+  const [baseUrl, setBaseUrl] = useState('');
   const [keyEdited, setKeyEdited] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [hasStoredKey, setHasStoredKey] = useState(false);
@@ -95,6 +96,7 @@ export function AiConfig() {
         setConfigured(true);
         setProvider(data.provider);
         setModel(data.model);
+        setBaseUrl(data.base_url ?? '');
         setSystemPrompt(data.system_prompt ?? '');
         setIsActive(data.is_active);
         setAutoReplyEnabled(data.auto_reply_enabled);
@@ -145,6 +147,7 @@ export function AiConfig() {
     provider,
     model: model.trim(),
     api_key: keyPayload(),
+    base_url: baseUrl.trim() || null,
     embeddings_api_key: embeddingsKeyPayload(),
     system_prompt: systemPrompt.trim() || null,
     is_active: isActive,
@@ -296,6 +299,20 @@ export function AiConfig() {
                 />
               </div>
             </div>
+
+            {provider === 'openai' && (
+              <div className="space-y-2">
+                <Label htmlFor="ai-base-url">{t('baseUrl')}</Label>
+                <Input
+                  id="ai-base-url"
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  placeholder="https://api.aicredits.in/v1 (optional)"
+                  disabled={disabled}
+                />
+                <p className="text-xs text-muted-foreground">{t('baseUrlHint')}</p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="ai-key">{t('apiKey')}</Label>

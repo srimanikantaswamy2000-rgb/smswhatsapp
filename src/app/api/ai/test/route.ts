@@ -67,6 +67,7 @@ export async function POST(request: Request) {
         provider,
         model,
         apiKey: apiKeyPlain,
+    baseUrl: null,
         systemPrompt: null,
         isActive: true,
         autoReplyEnabled: false,

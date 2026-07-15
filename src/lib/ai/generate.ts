@@ -31,6 +31,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     systemPrompt,
     messages,
     timeoutMs,
+    baseUrl: config.baseUrl,
   }
 
   let result: { text: string; usage: AiUsage | null }

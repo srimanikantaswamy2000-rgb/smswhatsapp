@@ -17,6 +17,9 @@ export interface AiConfig {
   provider: AiProvider
   model: string
   apiKey: string
+  /** Optional OpenAI-compatible gateway base URL (e.g.
+   *  https://api.aicredits.in/v1). Null = provider default endpoint. */
+  baseUrl: string | null
   systemPrompt: string | null
   isActive: boolean
   autoReplyEnabled: boolean
