@@ -45,9 +45,29 @@ export function parseContactCsv(text: string): ParseContactCsvResult {
     return { rows: [], hasTagsColumn: false, hasCompanyColumn: false };
   }
 
-  const headers = lines[0]
-    .split(',')
-    .map((h) => h.trim().toLowerCase().replace(/["']/g, ''));
+  const table = [lines[0].split(',')];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    table.push(parseCsvLine(line));
+  }
+  return parseContactTable(table);
+}
+
+/**
+ * Shared core: a grid of string cells (header row first) → parsed
+ * contacts. The CSV path feeds it split lines; the Excel path feeds
+ * it worksheet cells. Cell cleanup (quote stripping, trimming) is
+ * identical in both paths by design.
+ */
+export function parseContactTable(table: string[][]): ParseContactCsvResult {
+  if (table.length < 2) {
+    return { rows: [], hasTagsColumn: false, hasCompanyColumn: false };
+  }
+
+  const headers = table[0].map((h) =>
+    h.trim().toLowerCase().replace(/["']/g, '')
+  );
 
   const phoneIdx = headers.indexOf('phone');
   if (phoneIdx === -1) {
@@ -61,11 +81,8 @@ export function parseContactCsv(text: string): ParseContactCsvResult {
 
   const rows: ParsedContactRow[] = [];
 
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-
-    const values = parseCsvLine(line);
+  for (let i = 1; i < table.length; i++) {
+    const values = table[i];
     const phone = values[phoneIdx]?.replace(/["']/g, '').trim();
     if (!phone) continue;
 

@@ -165,15 +165,37 @@ export function ImportModal({
     const selected = e.target.files?.[0];
     if (!selected) return;
 
+    if (/\.xls$/i.test(selected.name)) {
+      toast.error(t('toastXlsOnly'));
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     setFile(selected);
     setResult(null);
 
-    const text = await selected.text();
+    let parsed;
+    // Dynamic import keeps exceljs out of the page bundle until an
+    // Excel file is actually chosen.
+    const { isExcelFilename, parseContactWorkbook } = await import(
+      '@/lib/contacts/parse-contact-workbook'
+    );
+    if (isExcelFilename(selected.name)) {
+      try {
+        parsed = await parseContactWorkbook(await selected.arrayBuffer());
+      } catch {
+        toast.error(t('toastNoValidRows'));
+        setParsedRows([]);
+        return;
+      }
+    } else {
+      parsed = parseContactCsv(await selected.text());
+    }
     const {
       rows,
       hasTagsColumn: csvHasTags,
       hasCompanyColumn: csvHasCompany,
-    } = parseContactCsv(text);
+    } = parsed;
 
     if (rows.length === 0) {
       toast.error(t('toastNoValidRows'));
@@ -459,7 +481,7 @@ export function ImportModal({
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             onChange={handleFileChange}
             className="hidden"
           />

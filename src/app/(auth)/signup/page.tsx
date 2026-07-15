@@ -117,7 +117,7 @@ function SignupPageInner() {
             Create account
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            Get started with CRM Template for WhatsApp
+            Get started with Sri Manikanta Swamy Agri Farm
           </CardDescription>
         </CardHeader>
         <CardContent>
