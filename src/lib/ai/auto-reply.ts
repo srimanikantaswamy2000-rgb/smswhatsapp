@@ -7,8 +7,13 @@ import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
-import { engineSendText } from '@/lib/flows/meta-send'
+import { engineSendText, engineSendMedia } from '@/lib/flows/meta-send'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import {
+  parseMediaDirectives,
+  detectReplyLanguage,
+  resolveMediaForSend,
+} from './media'
 
 interface DispatchArgs {
   /** Tenancy key — drives config, contact, and whatsapp_config lookups. */
@@ -179,14 +184,65 @@ export async function dispatchInboundToAiReply(
     }
     if (claimed !== true) return // lost the per-conversation cap race
 
-    await engineSendText({
-      accountId,
-      userId: configOwnerUserId,
-      conversationId,
-      contactId,
-      text,
-      aiGenerated: true,
-    })
+    // Split any `[[MEDIA:id]]` directives out of the customer-facing
+    // text. The stripped text is what we send; the ids drive follow-up
+    // media messages below.
+    const { cleanedText, mediaIds } = parseMediaDirectives(text)
+
+    if (cleanedText) {
+      await engineSendText({
+        accountId,
+        userId: configOwnerUserId,
+        conversationId,
+        contactId,
+        text: cleanedText,
+        aiGenerated: true,
+      })
+    }
+
+    // Share the product media the assistant attached. Best-effort: a
+    // failed media send (bad URL, Meta hiccup) must never throw — the
+    // text reply already landed, and the whole method is contractually
+    // non-throwing. Requires a public base URL Meta can fetch from
+    // (unset on localhost → media is skipped, text still sends).
+    if (mediaIds.length > 0) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL
+      if (baseUrl) {
+        const lang = detectReplyLanguage(cleanedText || text)
+        for (const item of resolveMediaForSend(mediaIds, lang, baseUrl)) {
+          // Videos are external links (e.g. YouTube) — sent as text so
+          // WhatsApp renders a preview; only images go as media messages.
+          try {
+            if (item.kind === 'image') {
+              await engineSendMedia({
+                accountId,
+                userId: configOwnerUserId,
+                conversationId,
+                contactId,
+                kind: 'image',
+                link: item.link,
+                caption: item.caption,
+              })
+            } else {
+              await engineSendText({
+                accountId,
+                userId: configOwnerUserId,
+                conversationId,
+                contactId,
+                text: `${item.caption}\n${item.link}`,
+                aiGenerated: true,
+              })
+            }
+          } catch (err) {
+            console.error('[ai auto-reply] media send failed:', err)
+          }
+        }
+      } else {
+        console.warn(
+          '[ai auto-reply] NEXT_PUBLIC_APP_URL not set — skipping media, text reply still sent.',
+        )
+      }
+    }
   } catch (err) {
     console.error('[ai auto-reply] dispatch failed:', err)
   }
