@@ -64,7 +64,9 @@ async function main() {
   // phone -> imported district string (fallback when mandal unknown).
   const importedDistrict = new Map<string, string>();
   const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(readFileSync(IMPORT_XLSX));
+  // Copy into a standalone ArrayBuffer — a Node Buffer is a view over a
+  // pooled allocation, which exceljs's types reject.
+  await wb.xlsx.load(Uint8Array.from(readFileSync(IMPORT_XLSX)).buffer);
   wb.worksheets[0].eachRow((row, n) => {
     if (n === 1) return;
     const phone = normPhone(row.getCell(1).text);

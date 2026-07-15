@@ -27,8 +27,42 @@ export interface ContactLike {
   phone?: string | null;
   email?: string | null;
   company?: string | null;
+  village?: string | null;
   district?: string | null;
   mandal?: string | null;
+}
+
+/**
+ * The contact fields a template variable can be bound to, in the order
+ * the wizard's dropdown offers them. `label` is what a non-technical
+ * user sees; `example` shows the kind of value it produces.
+ */
+export const BINDABLE_FIELDS = [
+  { value: 'name', label: 'Customer name', example: 'Rakesh' },
+  { value: 'village', label: 'Village', example: 'Vadisaleru' },
+  { value: 'mandal', label: 'Mandal', example: 'Tanuku' },
+  { value: 'district', label: 'District', example: 'West Godavari' },
+  { value: 'company', label: 'Company', example: 'Ramu Traders' },
+  { value: 'phone', label: 'Phone', example: '+919876543210' },
+  { value: 'email', label: 'Email', example: 'ramu@example.com' },
+] as const;
+
+/** Sensible fallback per field, per language — never blank. */
+export const FIELD_FALLBACKS: Record<string, { en: string; te: string }> = {
+  name: { en: 'Sir/Madam', te: 'రైతు గారు' },
+  village: { en: 'your village', te: 'మీ ఊరు' },
+  mandal: { en: 'your area', te: 'మీ మండలం' },
+  district: { en: 'your district', te: 'మీ జిల్లా' },
+  company: { en: 'your farm', te: 'మీ వ్యవసాయం' },
+  phone: { en: '-', te: '-' },
+  email: { en: '-', te: '-' },
+};
+
+/** Default fallback for a field in a template's language. */
+export function defaultFallback(field: string, language: string): string {
+  const pair = FIELD_FALLBACKS[field];
+  if (!pair) return DEFAULT_FALLBACK;
+  return language.toLowerCase().startsWith('te') ? pair.te : pair.en;
 }
 
 /**
@@ -73,6 +107,7 @@ function fieldValue(contact: ContactLike, field: string): string | undefined {
     phone: contact.phone,
     email: contact.email,
     company: contact.company,
+    village: contact.village,
     district: contact.district,
     mandal: contact.mandal,
   };

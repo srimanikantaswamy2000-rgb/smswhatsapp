@@ -115,7 +115,25 @@ Today all 928 contacts have a name, so the fallback is a safety net —
 but it must exist before the first nameless contact is added.
 *(Fallback wording is your call — see the question at the end.)*
 
-## 6. 250/day cap + automatic looping
+## 6. ~~250/day cap + automatic looping~~ — DROPPED
+
+**DECIDED (2026-07-15): do not build the multi-day loop.** The dealer is
+having Meta raise the number's tier, so a queue that drains 250/day over
+several days would be dead code within days. A broadcast sends in one
+pass.
+
+`daily_send_limit` (migration 042) stays as a column and the
+`broadcast_quota_remaining` RPC stays available — cheap to keep, and
+they let us *warn* the user ("you're sending 900 but today's cap is
+250") rather than silently failing. But no cron, no queue drain, no
+`queued` state machine.
+
+Consequence: the client-side send in `use-broadcast-sending.ts` is left
+as-is for now. Its real defect (the browser tab must stay open until the
+send finishes) is unchanged and worth revisiting once the tier is
+raised and campaign sizes grow.
+
+<details><summary>Original looping design (kept for reference if the cap ever bites)</summary>
 
 WhatsApp limits business-initiated conversations per rolling 24h (new
 numbers start at 250). Architecture:
@@ -144,6 +162,39 @@ POST /api/broadcasts   ─────►    resolve audience (RPC)
 
 **This replaces the client-side send loop.** `use-broadcast-sending.ts`
 shrinks to "POST and show progress".
+
+</details>
+
+## 6b. Personalising from the customer record (the real ask)
+
+The dealer wants a message to read, for a specific customer:
+
+> నమస్తే **రాకేష్** గారు! మీ ఊరు **తాడేపల్లిగూడెం** / **Tanuku** కి
+> harvester promotions ఉన్నాయి…
+
+i.e. **name and place both come out of the database, per recipient**.
+So every `{{n}}` in a template is bound, via a dropdown, to one of:
+
+| Source | Example value | Notes |
+|---|---|---|
+| Name | Rakesh | `contacts.name` |
+| Village | Vadisaleru | `contacts.village` — see below |
+| Mandal | Tanuku | `contacts.mandal`, canonicalised |
+| District | West Godavari | `contacts.district`, derived |
+| Company / Phone / Email | | existing fields |
+| Custom field | Crop, Acreage | account-defined |
+| Fixed text | "31 August" | same for everyone |
+
+Each binding carries an **editable fallback** (used when that customer's
+field is blank — a parameter can never be empty, §5) and the wizard
+shows a **live preview against a real contact** so the user sees the
+actual sentence before sending.
+
+**Village data fix (migration 044).** The Excel import wrote each
+customer's village into `contacts.company` — 922 rows hold values like
+"Vadisaleru", "Duvva", "Madduru". Those are villages, not companies.
+044 adds `contacts.village` and moves the data across, so the dropdown
+can honestly offer "Village" and `company` goes back to meaning company.
 
 ## 7. Mandal coverage (data gap)
 

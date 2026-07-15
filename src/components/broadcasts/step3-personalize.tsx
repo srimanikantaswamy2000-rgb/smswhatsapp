@@ -14,12 +14,20 @@ import {
 } from '@/components/ui/select';
 import { ArrowLeft, ArrowRight, Eye, ImageIcon, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import {
+  BINDABLE_FIELDS,
+  defaultFallback,
+  resolveVariable,
+} from '@/lib/broadcasts/variables';
 
 type VariableType = 'static' | 'field' | 'custom_field';
 
 interface VariableMapping {
   type: VariableType;
   value: string;
+  /** Used when this contact's field is empty. Never blank — WhatsApp
+   *  rejects an empty parameter and the send fails for that customer. */
+  fallback?: string;
 }
 
 interface Step3Props {
@@ -49,23 +57,27 @@ function isValidHttpUrl(value: string): boolean {
   }
 }
 
-const contactFields = [
-  { value: 'name', labelKey: 'name' },
-  { value: 'phone', labelKey: 'phone' },
-  { value: 'email', labelKey: 'email' },
-];
+// Every contact field a {{n}} can be bound to, incl. the geography the
+// dealer personalises on ("మీ ఊరు Tanuku కి..."). Single source of
+// truth — the sender resolves against the same list.
+const contactFields = BINDABLE_FIELDS;
 
+// Only used when the account has no contacts yet; a realistic local
+// example beats "John Doe / Acme Corp" for judging the Telugu preview.
 const SAMPLE_CONTACT: Contact = {
   id: 'sample',
   user_id: '',
   account_id: '',
-  name: 'John Doe',
-  phone: '+1234567890',
-  email: 'john@example.com',
-  company: 'Acme Corp',
+  name: 'Rakesh',
+  phone: '+919876543210',
+  email: '',
+  company: '',
+  village: 'Vadisaleru',
+  mandal: 'Tanuku',
+  district: 'West Godavari',
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
-};
+} as Contact;
 
 export function Step3Personalize({
   template,
@@ -203,20 +215,12 @@ export function Step3Personalize({
       const mapping = variables[key];
       let replacement = placeholder;
 
-      if (mapping) {
-        if (mapping.type === 'static' && mapping.value) {
-          replacement = mapping.value;
-        } else if (mapping.type === 'field' && mapping.value) {
-          const fieldMap: Record<string, string | undefined> = {
-            name: contact.name,
-            phone: contact.phone,
-            email: contact.email,
-            company: contact.company,
-          };
-          replacement = fieldMap[mapping.value] ?? placeholder;
-        } else if (mapping.type === 'custom_field' && mapping.value) {
-          replacement = customValues.get(mapping.value) || placeholder;
-        }
+      // Resolve through the same function the sender uses, so the
+      // preview can't drift from what actually goes out (fallbacks and
+      // Meta's sanitisation included). An unconfigured placeholder is
+      // left visible as {{n}} rather than resolved to a fallback.
+      if (mapping?.value) {
+        replacement = resolveVariable(mapping, contact, customValues);
       }
       text = text.replaceAll(placeholder, replacement);
     }
@@ -351,7 +355,15 @@ export function Step3Personalize({
                       <Select
                         value={mapping.value || undefined}
                         onValueChange={(val) =>
-                          updateVariable(key, { value: val || '' })
+                          // Picking a field seeds a sensible fallback in
+                          // the template's own language, so the common
+                          // case needs no typing.
+                          updateVariable(key, {
+                            value: val || '',
+                            fallback:
+                              mapping.fallback?.trim() ||
+                              defaultFallback(val ?? '', template.language ?? 'en'),
+                          })
                         }
                       >
                         <SelectTrigger className="w-full border-border bg-muted text-foreground">
@@ -360,7 +372,10 @@ export function Step3Personalize({
                         <SelectContent className="border-border bg-popover">
                           {contactFields.map((field) => (
                             <SelectItem key={field.value} value={field.value}>
-                              {t(`personalize.fieldMap.${field.labelKey}`)}
+                              {field.label}
+                              <span className="ml-1.5 text-xs text-muted-foreground">
+                                {field.example}
+                              </span>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -394,6 +409,29 @@ export function Step3Personalize({
                     )}
                   </div>
                 </div>
+
+                {/* Fallback — only meaningful for database-backed values.
+                    WhatsApp rejects an empty parameter, so a customer
+                    with a blank field would otherwise fail to receive
+                    the message entirely. */}
+                {mapping.type !== 'static' && mapping.value && (
+                  <div className="mt-3">
+                    <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                      If this customer has no{' '}
+                      {contactFields.find((f) => f.value === mapping.value)?.label.toLowerCase() ??
+                        'value'}
+                      , send instead
+                    </label>
+                    <Input
+                      value={mapping.fallback ?? ''}
+                      onChange={(e) =>
+                        updateVariable(key, { fallback: e.target.value })
+                      }
+                      placeholder={defaultFallback(mapping.value, template.language ?? 'en')}
+                      className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
+                )}
               </div>
             );
           })}

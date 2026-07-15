@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BINDABLE_FIELDS,
   DEFAULT_FALLBACK,
+  defaultFallback,
   resolveVariable,
   resolveVariables,
   sanitizeParam,
@@ -10,6 +12,7 @@ const contact = {
   name: 'Ramu',
   phone: '+919876543210',
   company: 'Ramu Farms',
+  village: 'Vadisaleru',
   district: 'East Godavari',
   mandal: 'Undrajavaram',
 };
@@ -73,6 +76,28 @@ describe('resolveVariable', () => {
     expect(resolveVariable({ type: 'field', value: 'mandal' }, contact)).toBe(
       'Undrajavaram',
     );
+    expect(resolveVariable({ type: 'field', value: 'village' }, contact)).toBe(
+      'Vadisaleru',
+    );
+    expect(resolveVariable({ type: 'field', value: 'district' }, contact)).toBe(
+      'East Godavari',
+    );
+  });
+
+  it('builds the dealer\'s sentence: name + place from the database', () => {
+    // "నమస్తే రాకేష్ గారు! మీ ఊరు Tanuku కి harvester promotions ఉన్నాయి"
+    const vars = {
+      '1': { type: 'field' as const, value: 'name', fallback: 'రైతు గారు' },
+      '2': { type: 'field' as const, value: 'mandal', fallback: 'మీ మండలం' },
+    };
+    expect(
+      resolveVariables(vars, { name: 'Rakesh', mandal: 'Tanuku' }),
+    ).toEqual(['Rakesh', 'Tanuku']);
+    // a customer with no mandal still gets a sendable message
+    expect(resolveVariables(vars, { name: 'Rakesh' })).toEqual([
+      'Rakesh',
+      'మీ మండలం',
+    ]);
   });
 
   it('resolves a custom field, falling back when absent', () => {
@@ -93,6 +118,29 @@ describe('resolveVariable', () => {
     expect(resolveVariable({ type: 'static', value: '31  August' }, contact)).toBe(
       '31 August',
     );
+  });
+});
+
+describe('defaultFallback', () => {
+  it('gives Telugu fallbacks for a te template', () => {
+    expect(defaultFallback('name', 'te')).toBe('రైతు గారు');
+    expect(defaultFallback('mandal', 'te')).toBe('మీ మండలం');
+  });
+
+  it('gives English fallbacks for en / en_US', () => {
+    expect(defaultFallback('name', 'en')).toBe('Sir/Madam');
+    expect(defaultFallback('name', 'en_US')).toBe('Sir/Madam');
+  });
+
+  it('falls back to the generic default for an unknown field', () => {
+    expect(defaultFallback('crop', 'en')).toBe(DEFAULT_FALLBACK);
+  });
+
+  it('every bindable field has a fallback in both languages', () => {
+    for (const f of BINDABLE_FIELDS) {
+      expect(defaultFallback(f.value, 'en')).toBeTruthy();
+      expect(defaultFallback(f.value, 'te')).toBeTruthy();
+    }
   });
 });
 
