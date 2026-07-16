@@ -209,7 +209,27 @@ export async function dispatchInboundToAiReply(
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL
       if (baseUrl) {
         const lang = detectReplyLanguage(cleanedText || text)
-        for (const item of resolveMediaForSend(mediaIds, lang, baseUrl)) {
+
+        // Never send the same photo twice in one conversation. The model
+        // keeps emitting [[MEDIA:mu4501]] on every turn about the MU4501;
+        // a prompt rule alone doesn't stop it, so enforce it here: pull
+        // the media_urls we've already sent in this thread and skip them.
+        const { data: priorMedia } = await db
+          .from('messages')
+          .select('media_url')
+          .eq('conversation_id', conversationId)
+          .not('media_url', 'is', null)
+        const alreadySent = new Set(
+          (priorMedia ?? [])
+            .map((m) => (m as { media_url: string | null }).media_url)
+            .filter((u): u is string => !!u),
+        )
+
+        const toSend = resolveMediaForSend(mediaIds, lang, baseUrl).filter(
+          (item) => item.kind !== 'image' || !alreadySent.has(item.link),
+        )
+
+        for (const item of toSend) {
           // Videos are external links (e.g. YouTube) — sent as text so
           // WhatsApp renders a preview; only images go as media messages.
           try {

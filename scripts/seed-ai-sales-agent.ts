@@ -20,6 +20,9 @@ config({ path: '.env.local' });
 const APPLY = process.argv.includes('--apply');
 const MODEL = 'anthropic/claude-sonnet-4.6';
 const PROMPT_FILE = 'docs/dealership/system-prompt.md';
+// Per-conversation auto-reply cap. A sales chat needs plenty of turns;
+// 8 (the old value) left customers hanging mid-conversation.
+const MAX_REPLIES = 30;
 
 /** The file is a doc: everything below the first `---` rule is the prompt. */
 function loadPrompt(): string {
@@ -70,12 +73,35 @@ async function main() {
     return;
   }
 
+  // Model + prompt first, on their own — this must always land, even
+  // if the cap below is rejected by an old DB constraint.
   const { error: upErr } = await db
     .from('ai_configs')
     .update({ model: MODEL, system_prompt: prompt })
     .eq('id', cfg.id);
   if (upErr) throw upErr;
-  console.log('config updated.');
+  console.log('model + system prompt updated.');
+
+  // Cap separately: the DB CHECK was BETWEEN 1 AND 20 before migration
+  // 045 (raises it to 50). If 30 is rejected, fall back to 20 so the
+  // agent still gets a workable cap rather than staying stuck at 8.
+  const { error: capErr } = await db
+    .from('ai_configs')
+    .update({ auto_reply_max_per_conversation: MAX_REPLIES })
+    .eq('id', cfg.id);
+  if (capErr) {
+    console.warn(
+      `cap ${MAX_REPLIES} rejected (run migration 045). Falling back to 20.`,
+    );
+    const { error: fbErr } = await db
+      .from('ai_configs')
+      .update({ auto_reply_max_per_conversation: 20 })
+      .eq('id', cfg.id);
+    if (fbErr) throw fbErr;
+    console.log('cap set to 20 (stopgap until migration 045).');
+  } else {
+    console.log(`cap set to ${MAX_REPLIES}.`);
+  }
 
   if (dupes.length > 0) {
     const { error: delErr } = await db

@@ -26,6 +26,20 @@ export const HANDOFF_SENTINEL = '[[HANDOFF]]'
  *  bounds token spend on the caller's own key. */
 export const MAX_OUTPUT_TOKENS = 1024
 
+/**
+ * Upper bound for `auto_reply_max_per_conversation`, shared by the
+ * settings form and the API that validates it — if they disagree, the
+ * UI accepts a number the server silently clamps.
+ *
+ * The cap is a backstop against a runaway bot loop, not the main route
+ * to a human ([[HANDOFF]] is). It was 20, which is too tight for a
+ * sales conversation: greet -> qualify -> recommend -> finance ->
+ * book a demo -> confirm easily runs 15-25 turns, and a customer who
+ * hits the ceiling mid-negotiation just sees the business stop
+ * replying.
+ */
+export const MAX_AUTO_REPLIES_CEILING = 50
+
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
 const DEFAULT_CONTEXT_MESSAGE_LIMIT = 20
 
