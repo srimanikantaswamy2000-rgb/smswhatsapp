@@ -12,11 +12,14 @@ import {
   Loader2,
   ArrowRight,
   ArrowLeft,
+  MapPin,
   X,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useAuth } from '@/hooks/use-auth';
+import { GeoAudiencePicker } from './geo-audience-picker';
 
-type AudienceType = 'all' | 'tags' | 'custom_field' | 'csv' | 'contacts';
+type AudienceType = 'geo' | 'all' | 'tags' | 'custom_field' | 'csv' | 'contacts';
 type CustomFieldOperator = 'is' | 'is_not' | 'contains';
 
 interface CustomFieldFilter {
@@ -27,6 +30,10 @@ interface CustomFieldFilter {
 
 interface AudienceConfig {
   type: AudienceType;
+  /** Geo targeting — the dealership's primary audience method. Empty
+   *  `mandals` with a district means "everyone in that district". */
+  districts?: string[];
+  mandals?: string[];
   tagIds?: string[];
   customField?: CustomFieldFilter;
   csvContacts?: { phone: string; name?: string }[];
@@ -49,6 +56,7 @@ export function Step2SelectAudience({
   onBack,
 }: Step2Props) {
   const t = useTranslations('Broadcasts.wizard');
+  const { accountId } = useAuth();
 
   const OPERATOR_OPTIONS = useMemo<{ value: CustomFieldOperator; label: string }[]>(() => [
     { value: 'is', label: t('selectAudience.operatorIs') },
@@ -62,6 +70,12 @@ export function Step2SelectAudience({
     description: string;
     icon: typeof Users;
   }[]>(() => [
+    {
+      type: 'geo',
+      label: 'By district & mandal',
+      description: 'Target customers by area — the usual choice',
+      icon: MapPin,
+    },
     {
       type: 'all',
       label: t('selectAudience.method.all'),
@@ -137,7 +151,29 @@ export function Step2SelectAudience({
       // Base query — produces the superset before exclude is applied.
       let baseIds: Set<string> | null = null; // null means "all contacts"
 
-      if (audience.type === 'all') {
+      if (audience.type === 'geo') {
+        // Counted server-side: the RPC applies district/mandal/exclude
+        // in one query and returns the windowed total, so the number is
+        // right even past PostgREST's ~1000-row ceiling.
+        if (!accountId) {
+          setEstimatedCount(null);
+          return;
+        }
+        const { data, error } = await supabase.rpc('resolve_broadcast_audience', {
+          p_account_id: accountId,
+          p_districts: audience.districts ?? [],
+          p_mandals: audience.mandals ?? [],
+          p_exclude_tag_ids: audience.excludeTagIds ?? [],
+          p_limit: 1,
+        });
+        if (error) {
+          setEstimatedCount(null);
+          return;
+        }
+        const row = (data ?? [])[0] as { total_count?: number } | undefined;
+        setEstimatedCount(Number(row?.total_count ?? 0));
+        return;
+      } else if (audience.type === 'all') {
         // Handled below — full-table count adjusted by excludes.
       } else if (
         audience.type === 'tags' &&
@@ -212,10 +248,13 @@ export function Step2SelectAudience({
     }
   }, [
     audience.type,
+    audience.districts,
+    audience.mandals,
     audience.tagIds,
     audience.customField,
     audience.csvContacts,
     audience.excludeTagIds,
+    accountId,
   ]);
 
   useEffect(() => {
@@ -248,6 +287,9 @@ export function Step2SelectAudience({
   }
 
   const isValid =
+    // Geo with no district selected means "all districts" — a valid,
+    // deliberate choice, so it never blocks Next.
+    audience.type === 'geo' ||
     audience.type === 'all' ||
     (audience.type === 'tags' && audience.tagIds && audience.tagIds.length > 0) ||
     (audience.type === 'custom_field' &&
@@ -328,6 +370,17 @@ export function Step2SelectAudience({
             })}
           </p>
         </div>
+      )}
+
+      {audience.type === 'geo' && (
+        <GeoAudiencePicker
+          accountId={accountId}
+          districts={audience.districts ?? []}
+          mandals={audience.mandals ?? []}
+          onChange={({ districts, mandals }) =>
+            onUpdate({ ...audience, type: 'geo', districts, mandals })
+          }
+        />
       )}
 
       {audience.type === 'tags' && (

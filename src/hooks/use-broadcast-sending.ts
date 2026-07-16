@@ -14,7 +14,11 @@ export interface CustomFieldFilter {
 }
 
 export interface AudienceConfig {
-  type: 'all' | 'tags' | 'custom_field' | 'csv' | 'contacts';
+  type: 'geo' | 'all' | 'tags' | 'custom_field' | 'csv' | 'contacts';
+  /** Geo targeting. Empty `mandals` with a district = whole district;
+   *  empty `districts` = every district. */
+  districts?: string[];
+  mandals?: string[];
   tagIds?: string[];
   customField?: CustomFieldFilter;
   csvContacts?: { phone: string; name?: string }[];
@@ -130,7 +134,22 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
 
     let contacts: Contact[] = [];
 
-    if (audience.type === 'all') {
+    if (audience.type === 'geo') {
+      // Resolved server-side by the same RPC that produced the count in
+      // step 2 — so the number the user approved is exactly the number
+      // that gets messaged. p_limit null returns the whole audience.
+      if (!accountId) throw new Error('Your profile is not linked to an account.');
+      const { data, error } = await supabase.rpc('resolve_broadcast_audience', {
+        p_account_id: accountId,
+        p_districts: audience.districts ?? [],
+        p_mandals: audience.mandals ?? [],
+        p_exclude_tag_ids: audience.excludeTagIds ?? [],
+        p_limit: null,
+      });
+      if (error) throw new Error(`Failed to resolve audience: ${error.message}`);
+      contacts = ((data ?? []) as { contact: Contact }[]).map((r) => r.contact);
+      return contacts;
+    } else if (audience.type === 'all') {
       const { data, error } = await supabase.from('contacts').select('*');
       if (error) throw new Error(`Failed to fetch contacts: ${error.message}`);
       contacts = data ?? [];
@@ -348,6 +367,8 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
           template_variables: payload.variables,
           audience_filter: {
             type: payload.audience.type,
+            districts: payload.audience.districts,
+            mandals: payload.audience.mandals,
             tagIds: payload.audience.tagIds,
             customField: payload.audience.customField,
             excludeTagIds: payload.audience.excludeTagIds,

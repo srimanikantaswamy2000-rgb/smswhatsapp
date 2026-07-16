@@ -12,12 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, ArrowRight, Eye, ImageIcon, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Eye, ImageIcon, Loader2, Send } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import {
   BINDABLE_FIELDS,
   defaultFallback,
   resolveVariable,
+  resolveVariables,
 } from '@/lib/broadcasts/variables';
 
 type VariableType = 'static' | 'field' | 'custom_field';
@@ -96,6 +97,11 @@ export function Step3Personalize({
     Map<string, string>
   >(new Map());
   const [loadingPreview, setLoadingPreview] = useState(true);
+  const [testPhone, setTestPhone] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(
+    null,
+  );
 
   // Load user's custom fields + a representative contact for the
   // live preview. Fall back to sample data if no contacts exist yet.
@@ -236,6 +242,71 @@ export function Step3Personalize({
   const previewLabel = firstContact
     ? firstContact.name || firstContact.phone
     : t('personalize.previewSample');
+
+  /**
+   * Send this exact template — same variables, same media — to one
+   * number, through the same API the real broadcast uses. Lets the
+   * owner see the message on a real phone and fix it BEFORE it goes to
+   * hundreds of customers. Deliberately reuses /api/whatsapp/broadcast
+   * with a single recipient: a separate "test" path could drift from
+   * the real one and pass a test that the broadcast then fails.
+   */
+  async function handleSendTest() {
+    const digits = testPhone.replace(/\D/g, '');
+    // Accept 9876543210, 919876543210 or +91 98765 43210.
+    const phone = digits.length === 10 ? `91${digits}` : digits;
+    if (phone.length < 11) {
+      setTestResult({ ok: false, msg: 'Enter a valid mobile number (10 digits).' });
+      return;
+    }
+    if (headerMediaError) {
+      setTestResult({ ok: false, msg: 'Add the header media URL first.' });
+      return;
+    }
+
+    setSendingTest(true);
+    setTestResult(null);
+    try {
+      const contact = firstContact ?? SAMPLE_CONTACT;
+      const customValues = firstContact
+        ? firstContactCustomValues
+        : new Map<string, string>();
+      const params = resolveVariables(variables, contact, customValues);
+
+      const res = await fetch('/api/whatsapp/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipients: [{ phone, params }],
+          template_name: template.name,
+          template_language: template.language ?? 'en_US',
+          ...(mediaHeaderType && headerMediaUrl.trim()
+            ? { headerMediaUrl: headerMediaUrl.trim() }
+            : {}),
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setTestResult({
+          ok: false,
+          msg: data?.error ?? `Send failed (${res.status}).`,
+        });
+        return;
+      }
+      // The endpoint reports per-recipient outcomes; surface the real
+      // one rather than a blanket "sent".
+      const failed = data?.failed ?? data?.results?.filter?.((r: { success?: boolean }) => r.success === false)?.length ?? 0;
+      setTestResult(
+        failed
+          ? { ok: false, msg: data?.results?.[0]?.error ?? 'WhatsApp rejected the message.' }
+          : { ok: true, msg: `Test sent to +${phone}. Check that phone.` },
+      );
+    } catch {
+      setTestResult({ ok: false, msg: 'Network error — could not send the test.' });
+    } finally {
+      setSendingTest(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -455,6 +526,53 @@ export function Step3Personalize({
               {previewText}
             </p>
           </div>
+        </div>
+
+        {/* Test send — see it on a real phone before it reaches
+            hundreds of customers. */}
+        <div className="mt-4 border-t border-border pt-4">
+          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+            Send a test to one number first
+          </label>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              type="tel"
+              inputMode="numeric"
+              value={testPhone}
+              onChange={(e) => {
+                setTestPhone(e.target.value);
+                setTestResult(null);
+              }}
+              placeholder="9876543210"
+              className="border-border bg-muted text-foreground placeholder:text-muted-foreground sm:max-w-[16rem]"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSendTest}
+              disabled={sendingTest || !testPhone.trim()}
+              className="border-border"
+            >
+              {sendingTest && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Send className="mr-2 h-4 w-4" />
+              Send test
+            </Button>
+          </div>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Sends this exact message — same wording, media and{' '}
+            {previewLabel === t('personalize.previewSample')
+              ? 'sample'
+              : `${previewLabel}'s`}{' '}
+            details — so you can check it, then come back and change
+            anything.
+          </p>
+          {testResult && (
+            <p
+              className={`mt-2 text-xs ${testResult.ok ? 'text-primary' : 'text-amber-300'}`}
+            >
+              {testResult.msg}
+            </p>
+          )}
         </div>
       </div>
 

@@ -10,7 +10,11 @@ import { Step1ChooseTemplate } from '@/components/broadcasts/step1-choose-templa
 import { Step2SelectAudience } from '@/components/broadcasts/step2-select-audience';
 import { Step3Personalize } from '@/components/broadcasts/step3-personalize';
 import { Step4ScheduleSend } from '@/components/broadcasts/step4-schedule-send';
-import { useBroadcastSending } from '@/hooks/use-broadcast-sending';
+import {
+  useBroadcastSending,
+  type AudienceConfig,
+} from '@/hooks/use-broadcast-sending';
+import type { VariableMapping } from '@/lib/broadcasts/variables';
 import { Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -39,25 +43,15 @@ export default function NewBroadcastPage() {
 
   const [currentStep, setCurrentStep] = useState(0);
   const [template, setTemplate] = useState<MessageTemplate | null>(null);
-  const [audience, setAudience] = useState<{
-    type: 'all' | 'tags' | 'custom_field' | 'csv' | 'contacts';
-    tagIds?: string[];
-    customField?: {
-      fieldId: string;
-      operator: 'is' | 'is_not' | 'contains';
-      value: string;
-    };
-    csvContacts?: { phone: string; name?: string }[];
-    contactIds?: string[];
-    excludeTagIds?: string[];
-  }>(
+  // Both shapes are imported rather than re-declared here: this page,
+  // the wizard steps and the sending hook must agree, and a local copy
+  // is how 'geo' (and the variable fallback) silently got dropped.
+  const [audience, setAudience] = useState<AudienceConfig>(
     preselectedContactIds.length > 0
       ? { type: 'contacts', contactIds: preselectedContactIds }
-      : { type: 'all' },
+      : { type: 'geo' }, // geo is the dealership's primary targeting
   );
-  const [variables, setVariables] = useState<
-    Record<string, { type: 'static' | 'field' | 'custom_field'; value: string }>
-  >({});
+  const [variables, setVariables] = useState<Record<string, VariableMapping>>({});
   const [headerMediaUrl, setHeaderMediaUrl] = useState('');
   const [name, setName] = useState('');
 
@@ -68,14 +62,7 @@ export default function NewBroadcastPage() {
       const broadcastId = await createAndSendBroadcast({
         name,
         template,
-        audience: {
-          type: audience.type,
-          tagIds: audience.tagIds,
-          customField: audience.customField,
-          csvContacts: audience.csvContacts,
-          contactIds: audience.contactIds,
-          excludeTagIds: audience.excludeTagIds,
-        },
+        audience,
         variables,
         headerMediaUrl,
       });

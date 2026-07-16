@@ -76,7 +76,7 @@ async function main() {
 
   const { data: contacts, error } = await db
     .from('contacts')
-    .select('id, phone, name')
+    .select('id, phone, name, village')
     .limit(5000);
   if (error) throw error;
 
@@ -96,8 +96,16 @@ async function main() {
     let district: string | null = null;
     let mandal: string | null = null;
 
+    // Source order: the spreadsheets' mandal column first; failing
+    // that, the village itself — the dealer's sheets often record the
+    // mandal town as the "village" (Penugonda, Tadepalligudem,
+    // Undrajavaram are mandal HQs, so both are true). Only accepted
+    // when it resolves to a real mandal, so ordinary village names
+    // (Duvva, Vadisaleru) are correctly ignored.
     const rawMandal = phone ? rawGeo.get(phone)?.mandal : undefined;
-    const ref = rawMandal ? normalizeMandal(rawMandal) : null;
+    const ref =
+      (rawMandal ? normalizeMandal(rawMandal) : null) ??
+      (c.village ? normalizeMandal(c.village) : null);
 
     if (ref) {
       // Authoritative: the mandal decides the district.
