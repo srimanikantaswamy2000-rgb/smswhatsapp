@@ -137,7 +137,14 @@ export function GeoAudiencePicker({
         </label>
         <Select value={selectedDistrict} onValueChange={(v) => pickDistrict(v ?? ALL_DISTRICTS)}>
           <SelectTrigger className="w-full border-border bg-muted text-foreground">
-            <SelectValue />
+            {/* Explicit label: base-ui's Value renders the raw value when
+                given no children, which leaked the ALL_DISTRICTS
+                sentinel ("__all__") into the UI. */}
+            <SelectValue>
+              {selectedDistrict === ALL_DISTRICTS
+                ? `All districts · ${totalContacts} customers`
+                : `${selectedDistrict} · ${districtOptions.find(([n]) => n === selectedDistrict)?.[1] ?? 0} customers`}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent className="border-border bg-popover">
             <SelectItem value={ALL_DISTRICTS}>

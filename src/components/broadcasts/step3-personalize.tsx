@@ -1,7 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
+import {
+  uploadAccountMedia,
+  MEDIA_MAX_BYTES_BY_KIND,
+} from '@/lib/storage/upload-media';
 import { Contact, CustomField, MessageTemplate } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +17,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, ArrowRight, Eye, ImageIcon, Loader2, Send } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Eye,
+  ImageIcon,
+  Loader2,
+  Send,
+  Upload,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import {
   BINDABLE_FIELDS,
@@ -97,6 +110,8 @@ export function Step3Personalize({
     Map<string, string>
   >(new Map());
   const [loadingPreview, setLoadingPreview] = useState(true);
+  const headerFileRef = useRef<HTMLInputElement>(null);
+  const [uploadingHeader, setUploadingHeader] = useState(false);
   const [testPhone, setTestPhone] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(
@@ -244,6 +259,37 @@ export function Step3Personalize({
     : t('personalize.previewSample');
 
   /**
+   * Upload a header image/video/document from the user's machine to the
+   * account-scoped public bucket and use its URL. Size is checked
+   * against Meta's per-kind cap BEFORE upload — a file the bucket would
+   * accept but Meta rejects would otherwise sit in storage as an orphan
+   * and fail at send time with a confusing 400.
+   */
+  async function handleHeaderFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !mediaHeaderType) return;
+    const cap = MEDIA_MAX_BYTES_BY_KIND[mediaHeaderType];
+    if (file.size > cap) {
+      toast.error(
+        `${(file.size / 1024 / 1024).toFixed(1)} MB is too large — WhatsApp allows up to ${cap / 1024 / 1024} MB for ${mediaHeaderType}.`,
+      );
+      if (headerFileRef.current) headerFileRef.current.value = '';
+      return;
+    }
+    setUploadingHeader(true);
+    try {
+      const { publicUrl } = await uploadAccountMedia('chat-media', file);
+      onHeaderMediaUrlChange(publicUrl);
+      toast.success('Image uploaded.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed.');
+    } finally {
+      setUploadingHeader(false);
+      if (headerFileRef.current) headerFileRef.current.value = '';
+    }
+  }
+
+  /**
    * Send this exact template — same variables, same media — to one
    * number, through the same API the real broadcast uses. Lets the
    * owner see the message on a real phone and fix it BEFORE it goes to
@@ -324,6 +370,42 @@ export function Step3Personalize({
             <p className="text-sm font-medium text-foreground">{t('personalize.headerImage')}</p>
             <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium uppercase text-primary">
               {mediaHeaderType}
+            </span>
+          </div>
+          {/* Upload beats typing a URL: the owner has the photo on the
+              phone/PC, not on a CDN. Uploads to the same account-scoped
+              public bucket the template manager uses, so Meta can fetch
+              it at send time. Pasting a URL still works. */}
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <input
+              ref={headerFileRef}
+              type="file"
+              accept={
+                mediaHeaderType === 'image'
+                  ? 'image/jpeg,image/png'
+                  : mediaHeaderType === 'video'
+                    ? 'video/mp4,video/3gpp'
+                    : 'application/pdf'
+              }
+              onChange={handleHeaderFile}
+              className="hidden"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => headerFileRef.current?.click()}
+              disabled={uploadingHeader}
+              className="border-border"
+            >
+              {uploadingHeader ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="mr-2 h-4 w-4" />
+              )}
+              {uploadingHeader ? 'Uploading…' : 'Upload from computer'}
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              or paste a link below
             </span>
           </div>
           <label className="mb-1.5 block text-xs font-medium text-muted-foreground">

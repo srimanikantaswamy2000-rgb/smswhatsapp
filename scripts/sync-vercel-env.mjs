@@ -34,6 +34,9 @@ const OVERRIDE = {
   // Local points at localhost; production must be the real origin or
   // WhatsApp cannot fetch the media links the AI agent sends.
   NEXT_PUBLIC_APP_URL: PROD_URL,
+  // Dev keeps the dry run on so experiments never hit Meta's template
+  // review queue. Production must actually submit.
+  WHATSAPP_TEMPLATES_DRY_RUN: 'false',
 };
 
 function parseEnv(text) {
