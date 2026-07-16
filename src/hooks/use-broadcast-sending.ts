@@ -91,6 +91,7 @@ type CustomValueIndex = Map<string, Map<string, string>>;
 // newline-bearing parameter fails the send). Imported for local use in
 // the send loop below and re-exported for existing callers.
 import { resolveVariables } from '@/lib/broadcasts/variables';
+import { buildBroadcastRequestBody } from '@/lib/broadcasts/send-payload';
 
 export { resolveVariables };
 
@@ -474,20 +475,25 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
                   customValueIndex.get(r.contact.id),
                 )
               : [],
-            ...(messageParams ? { messageParams } : {}),
           }));
 
         if (apiRecipients.length === 0) continue;
 
         try {
+          // Shared with the wizard's "Send test" so the two can never
+          // disagree about where headerMediaUrl belongs.
           const res = await fetch('/api/whatsapp/broadcast', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              recipients: apiRecipients,
-              template_name: payload.template.name,
-              template_language: payload.template.language ?? 'en_US',
-            }),
+            body: JSON.stringify(
+              buildBroadcastRequestBody({
+                templateName: payload.template.name,
+                templateLanguage: payload.template.language,
+                headerType: payload.template.header_type,
+                headerMediaUrl: payload.headerMediaUrl,
+                recipients: apiRecipients,
+              }),
+            ),
           });
 
           const data = await res.json();

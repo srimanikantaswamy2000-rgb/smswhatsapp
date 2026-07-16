@@ -33,6 +33,7 @@ import {
   resolveVariable,
   resolveVariables,
 } from '@/lib/broadcasts/variables';
+import { buildBroadcastRequestBody } from '@/lib/broadcasts/send-payload';
 
 type VariableType = 'static' | 'field' | 'custom_field';
 
@@ -306,7 +307,23 @@ export function Step3Personalize({
       return;
     }
     if (headerMediaError) {
-      setTestResult({ ok: false, msg: 'Add the header media URL first.' });
+      setTestResult({
+        ok: false,
+        msg:
+          headerMediaError === 'missing'
+            ? 'Upload or paste the header image first.'
+            : 'The header media URL is not a valid http(s) link.',
+      });
+      return;
+    }
+    // Meta counts parameters: sending {{1}} unmapped fails the whole
+    // send with an opaque "param count mismatch" (132000). Say so here
+    // instead of letting the customer-facing API explain it.
+    if (unmappedKeys.length > 0) {
+      setTestResult({
+        ok: false,
+        msg: `Choose a value for ${unmappedKeys.join(', ')} first.`,
+      });
       return;
     }
 
@@ -319,17 +336,20 @@ export function Step3Personalize({
         : new Map<string, string>();
       const params = resolveVariables(variables, contact, customValues);
 
+      // Shared builder — the test and the real broadcast MUST produce
+      // an identical body, or a test can pass while the send fails.
       const res = await fetch('/api/whatsapp/broadcast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recipients: [{ phone, params }],
-          template_name: template.name,
-          template_language: template.language ?? 'en_US',
-          ...(mediaHeaderType && headerMediaUrl.trim()
-            ? { headerMediaUrl: headerMediaUrl.trim() }
-            : {}),
-        }),
+        body: JSON.stringify(
+          buildBroadcastRequestBody({
+            templateName: template.name,
+            templateLanguage: template.language,
+            headerType: template.header_type,
+            headerMediaUrl,
+            recipients: [{ phone, params }],
+          }),
+        ),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
