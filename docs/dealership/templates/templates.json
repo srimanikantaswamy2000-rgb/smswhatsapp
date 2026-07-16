@@ -1,18 +1,18 @@
 {
-  "_readme": "WhatsApp template drafts for Sri Manikanta Swamy Agri Farm. Shape matches the CRM's TemplatePayload — create in Settings → Templates or POST to /api/whatsapp/templates/submit. Names: lowercase+underscore. Every MARKETING template carries an image header (header_media_url) — replace REPLACE_WITH_* with a public image URL (e.g. https://<your-vercel-domain>/media/kubota/mu4501-1.jpg) before submitting. Phone-button numbers are placeholders. en+te pairs throughout.",
+  "_readme": "WhatsApp template drafts for Sri Manikanta Swamy Agri Farm. Shape matches the CRM's TemplatePayload — create in Settings → Templates or POST to /api/whatsapp/templates/submit. Names: lowercase+underscore. Phone buttons use the real showroom number (+919281244676). Image headers point at live, publicly-fetchable product photos on the deployed app. STILL PENDING: the two parts_payment templates need the payment QR image (REPLACE_WITH_PAYMENT_QR_IMAGE_URL) — do not submit those until it is supplied. NOTE: nothing here has been submitted to Meta; WHATSAPP_TEMPLATES_DRY_RUN is deliberately 'true' in production.",
   "templates": [
     {
       "name": "tractor_social_en",
       "category": "Marketing",
       "language": "en",
       "header_type": "image",
-      "header_media_url": "REPLACE_WITH_PUBLIC_IMAGE_URL",
+      "header_media_url": "https://whatsapp-crm-test.vercel.app/media/kubota/mu4501-1.jpg",
       "body_text": "🚜🌾 Namaste {{1}} garu! 🌾🚜\n\nKubota power has arrived in Tadepalligudem! 💪 From compact orchard tractors to 55 HP giants — the machine that fits YOUR field is waiting at Sri Manikanta Swamy Agri Farm. ✅\n\n✨ Genuine Kubota\n✅ Finance made easy\n🏡 FREE demo in your own field\n🔧 Genuine spares & service\n\nReply and let's find your perfect tractor! 🙏",
       "footer_text": "Authorized Kubota Dealer 🚜",
       "buttons": [
         { "type": "QUICK_REPLY", "text": "🚜 Show tractors" },
         { "type": "QUICK_REPLY", "text": "🏡 Book free demo" },
-        { "type": "PHONE_NUMBER", "text": "📞 Call us", "phone_number": "+919999999999" }
+        { "type": "PHONE_NUMBER", "text": "📞 Call us", "phone_number": "+919281244676" }
       ],
       "sample_values": { "body": ["Ramu"] }
     },
@@ -21,13 +21,13 @@
       "category": "Marketing",
       "language": "te",
       "header_type": "image",
-      "header_media_url": "REPLACE_WITH_PUBLIC_IMAGE_URL",
+      "header_media_url": "https://whatsapp-crm-test.vercel.app/media/kubota/mu4501-1.jpg",
       "body_text": "🚜🌾 నమస్తే {{1}} గారు! 🌾🚜\n\nతాడేపల్లిగూడెంలో కుబోటా పవర్ వచ్చేసింది! 💪 చిన్న తోట ట్రాక్టర్ నుండి 55 HP పెద్ద ట్రాక్టర్ వరకు — మీ పొలానికి సరిపడే యంత్రం శ్రీ మాణిక్యంత స్వామి అగ్రి ఫార్మ్‌లో సిద్ధంగా ఉంది. ✅\n\n✨ అసలైన కుబోటా\n✅ సులభమైన ఫైనాన్స్\n🏡 మీ పొలంలోనే ఉచిత డెమో\n🔧 అసలైన స్పేర్స్ & సర్వీస్\n\nరిప్లై చేయండి, మీకు సరైన ట్రాక్టర్ చూద్దాం! 🙏",
       "footer_text": "అధీకృత కుబోటా డీలర్ 🚜",
       "buttons": [
         { "type": "QUICK_REPLY", "text": "🚜 ట్రాక్టర్లు చూడండి" },
         { "type": "QUICK_REPLY", "text": "🏡 ఉచిత డెమో" },
-        { "type": "PHONE_NUMBER", "text": "📞 కాల్ చేయండి", "phone_number": "+919999999999" }
+        { "type": "PHONE_NUMBER", "text": "📞 కాల్ చేయండి", "phone_number": "+919281244676" }
       ],
       "sample_values": { "body": ["రాము"] }
     },
@@ -36,13 +36,13 @@
       "category": "Marketing",
       "language": "en",
       "header_type": "image",
-      "header_media_url": "REPLACE_WITH_MU4501_IMAGE_URL",
+      "header_media_url": "https://whatsapp-crm-test.vercel.app/media/kubota/mu4501-1.jpg",
       "body_text": "🔥 The tractor every Godavari farmer trusts! 🔥\n\nNamaste {{1}} garu 🙏 The Kubota MU4501 (45 HP) — India's #1 bestseller — does it ALL: 🌊 dammu, 🌱 dry land & 🚛 haulage, with famous diesel savings. ⛽💰\n\nOne tractor. Every job. Season after season. 🚜🌾\n\nWant to see it work in YOUR field? Book a FREE demo today! ✅",
       "footer_text": "Kubota MU4501 · Best resale in AP 💪",
       "buttons": [
         { "type": "QUICK_REPLY", "text": "🏡 Book free demo" },
         { "type": "QUICK_REPLY", "text": "💰 Finance options" },
-        { "type": "PHONE_NUMBER", "text": "📞 Call showroom", "phone_number": "+919999999999" }
+        { "type": "PHONE_NUMBER", "text": "📞 Call showroom", "phone_number": "+919281244676" }
       ],
       "sample_values": { "body": ["Ramu"] }
     },
@@ -51,13 +51,13 @@
       "category": "Marketing",
       "language": "te",
       "header_type": "image",
-      "header_media_url": "REPLACE_WITH_MU4501_IMAGE_URL",
+      "header_media_url": "https://whatsapp-crm-test.vercel.app/media/kubota/mu4501-1.jpg",
       "body_text": "🔥 ప్రతి గోదావరి రైతు నమ్మే ట్రాక్టర్! 🔥\n\nనమస్తే {{1}} గారు 🙏 కుబోటా MU4501 (45 HP) — భారత్‌లో నం.1 బెస్ట్‌సెల్లర్ — అన్నీ చేస్తుంది: 🌊 దమ్ము, 🌱 మెట్ట, 🚛 రవాణా, ప్రసిద్ధ డీజిల్ ఆదాతో. ⛽💰\n\nఒకే ట్రాక్టర్. అన్ని పనులు. ప్రతి సీజన్. 🚜🌾\n\nమీ పొలంలో పని చూడాలా? ఈరోజే ఉచిత డెమో బుక్ చేయండి! ✅",
       "footer_text": "కుబోటా MU4501 · APలో మంచి రీసేల్ 💪",
       "buttons": [
         { "type": "QUICK_REPLY", "text": "🏡 ఉచిత డెమో బుక్" },
         { "type": "QUICK_REPLY", "text": "💰 ఫైనాన్స్" },
-        { "type": "PHONE_NUMBER", "text": "📞 షోరూమ్ కాల్", "phone_number": "+919999999999" }
+        { "type": "PHONE_NUMBER", "text": "📞 షోరూమ్ కాల్", "phone_number": "+919281244676" }
       ],
       "sample_values": { "body": ["రాము"] }
     },
@@ -66,13 +66,13 @@
       "category": "Marketing",
       "language": "en",
       "header_type": "image",
-      "header_media_url": "REPLACE_WITH_PUBLIC_IMAGE_URL",
+      "header_media_url": "https://whatsapp-crm-test.vercel.app/media/kubota/mu4501-1.jpg",
       "body_text": "🌾 This season, harvest more! 🚜\n\nNamaste {{1}} garu 🙏 Season is coming — Sri Manikanta Swamy Agri Farm (Authorized Kubota Dealer, Tadepalligudem) has special season support on {{2}}. Genuine Kubota machines, finance arranged, FREE field demo in your village. ✅ Reply and our team will call you!",
       "footer_text": "Kubota · Sales · Service · Spares 🔧",
       "buttons": [
         { "type": "QUICK_REPLY", "text": "📋 Send details" },
         { "type": "QUICK_REPLY", "text": "🏡 Book free demo" },
-        { "type": "PHONE_NUMBER", "text": "📞 Call showroom", "phone_number": "+919999999999" }
+        { "type": "PHONE_NUMBER", "text": "📞 Call showroom", "phone_number": "+919281244676" }
       ],
       "sample_values": { "body": ["Ramu", "Kubota MU4501 tractors"] }
     },
@@ -81,13 +81,13 @@
       "category": "Marketing",
       "language": "te",
       "header_type": "image",
-      "header_media_url": "REPLACE_WITH_PUBLIC_IMAGE_URL",
+      "header_media_url": "https://whatsapp-crm-test.vercel.app/media/kubota/mu4501-1.jpg",
       "body_text": "🌾 ఈ సీజన్‌లో ఎక్కువ పంట! 🚜\n\nనమస్తే {{1}} గారు 🙏 సీజన్ వస్తోంది — శ్రీ మాణిక్యంత స్వామి అగ్రి ఫార్మ్ (అధీకృత కుబోటా డీలర్, తాడేపల్లిగూడెం) వద్ద {{2}} పై ప్రత్యేక సీజన్ ఆఫర్లు. అసలైన కుబోటా యంత్రాలు, ఫైనాన్స్ సౌకర్యం, మీ ఊరిలోనే ఉచిత డెమో. ✅ రిప్లై చేయండి, మా టీమ్ కాల్ చేస్తుంది!",
       "footer_text": "కుబోటా · అమ్మకాలు · సర్వీస్ · స్పేర్స్ 🔧",
       "buttons": [
         { "type": "QUICK_REPLY", "text": "📋 వివరాలు పంపండి" },
         { "type": "QUICK_REPLY", "text": "🏡 ఉచిత డెమో" },
-        { "type": "PHONE_NUMBER", "text": "📞 షోరూమ్ కాల్", "phone_number": "+919999999999" }
+        { "type": "PHONE_NUMBER", "text": "📞 షోరూమ్ కాల్", "phone_number": "+919281244676" }
       ],
       "sample_values": { "body": ["రాము", "కుబోటా MU4501 ట్రాక్టర్లు"] }
     },
@@ -96,7 +96,7 @@
       "category": "Marketing",
       "language": "en",
       "header_type": "image",
-      "header_media_url": "REPLACE_WITH_PUBLIC_IMAGE_URL",
+      "header_media_url": "https://whatsapp-crm-test.vercel.app/media/kubota/mu4501-1.jpg",
       "body_text": "🎉 New arrival at our showroom! 🚜\n\n{{1}} is now available at Sri Manikanta Swamy Agri Farm, Tadepalligudem. Be among the first to see it working — book a FREE field demo or visit us Mon–Sat, 9 AM–6 PM. 🌾✅",
       "footer_text": "Authorized Kubota Dealer 🚜",
       "buttons": [
@@ -110,7 +110,7 @@
       "category": "Marketing",
       "language": "te",
       "header_type": "image",
-      "header_media_url": "REPLACE_WITH_PUBLIC_IMAGE_URL",
+      "header_media_url": "https://whatsapp-crm-test.vercel.app/media/kubota/mu4501-1.jpg",
       "body_text": "🎉 మా షోరూమ్‌కు కొత్త రాక! 🚜\n\n{{1}} ఇప్పుడు శ్రీ మాణిక్యంత స్వామి అగ్రి ఫార్మ్, తాడేపల్లిగూడెంలో అందుబాటులో ఉంది. పని చేస్తుండగా చూడండి — ఉచిత డెమో బుక్ చేయండి లేదా సోమ–శని ఉ.9–సా.6 మధ్య రండి. 🌾✅",
       "footer_text": "అధీకృత కుబోటా డీలర్ 🚜",
       "buttons": [
@@ -124,13 +124,13 @@
       "category": "Marketing",
       "language": "en",
       "header_type": "image",
-      "header_media_url": "REPLACE_WITH_HARVESTER_IMAGE_URL",
+      "header_media_url": "https://whatsapp-crm-test.vercel.app/media/kubota/dc99-1.jpg",
       "body_text": "🌾 Harvest season is near! 🌾\n\nNamaste {{1}} garu 🙏 Don't wait in rental queues this harvest. Kubota DC-68G (68 HP) & DC-99 Harvesking (98 HP) combine harvesters are at Sri Manikanta Swamy Agri Farm — 💪 crawler tracks for wet Godavari fields, 5.75–10 acres/day, finance support available. Own the machine that earns every season! 🚜✅",
       "footer_text": "Free demo · Finance · Genuine spares 🔧",
       "buttons": [
         { "type": "QUICK_REPLY", "text": "🌾 Harvester details" },
         { "type": "QUICK_REPLY", "text": "💰 EMI options" },
-        { "type": "PHONE_NUMBER", "text": "📞 Call now", "phone_number": "+919999999999" }
+        { "type": "PHONE_NUMBER", "text": "📞 Call now", "phone_number": "+919281244676" }
       ],
       "sample_values": { "body": ["Ramu"] }
     },
@@ -139,13 +139,13 @@
       "category": "Marketing",
       "language": "te",
       "header_type": "image",
-      "header_media_url": "REPLACE_WITH_HARVESTER_IMAGE_URL",
+      "header_media_url": "https://whatsapp-crm-test.vercel.app/media/kubota/dc99-1.jpg",
       "body_text": "🌾 కోత సీజన్ దగ్గరపడింది! 🌾\n\nనమస్తే {{1}} గారు 🙏 ఈ కోతకు అద్దె యంత్రాల క్యూలో ఆగకండి. కుబోటా DC-68G (68 HP) & DC-99 హార్వెస్‌కింగ్ (98 HP) కంబైన్ హార్వెస్టర్లు శ్రీ మాణిక్యంత స్వామి అగ్రి ఫార్మ్‌లో — 💪 బురద పొలాలకు క్రాలర్ ట్రాక్స్, రోజుకు 5.75–10 ఎకరాలు, ఫైనాన్స్ సౌకర్యం. ప్రతి సీజన్ సంపాదించే యంత్రం సొంతం చేసుకోండి! 🚜✅",
       "footer_text": "ఉచిత డెమో · ఫైనాన్స్ · అసలైన స్పేర్స్ 🔧",
       "buttons": [
         { "type": "QUICK_REPLY", "text": "🌾 హార్వెస్టర్ వివరాలు" },
         { "type": "QUICK_REPLY", "text": "💰 EMI వివరాలు" },
-        { "type": "PHONE_NUMBER", "text": "📞 కాల్ చేయండి", "phone_number": "+919999999999" }
+        { "type": "PHONE_NUMBER", "text": "📞 కాల్ చేయండి", "phone_number": "+919281244676" }
       ],
       "sample_values": { "body": ["రాము"] }
     },
@@ -154,7 +154,7 @@
       "category": "Marketing",
       "language": "en",
       "header_type": "image",
-      "header_media_url": "REPLACE_WITH_PUBLIC_IMAGE_URL",
+      "header_media_url": "https://whatsapp-crm-test.vercel.app/media/kubota/mu4501-1.jpg",
       "body_text": "🎊 Limited-period offer! 🎊\n\nNamaste {{1}} garu 🙏 Special at Sri Manikanta Swamy Agri Farm: {{2}}. Offer valid till {{3}}. ⏳ Visit our showroom (Mon–Sat, 9–6) opposite Indian Oil Petrol Bunk, Alampuram, Tadepalligudem, or reply here for details! ✅",
       "footer_text": "T&C apply — confirm at showroom",
       "buttons": [
@@ -168,7 +168,7 @@
       "category": "Marketing",
       "language": "te",
       "header_type": "image",
-      "header_media_url": "REPLACE_WITH_PUBLIC_IMAGE_URL",
+      "header_media_url": "https://whatsapp-crm-test.vercel.app/media/kubota/mu4501-1.jpg",
       "body_text": "🎊 పరిమిత కాల ఆఫర్! 🎊\n\nనమస్తే {{1}} గారు 🙏 శ్రీ మాణిక్యంత స్వామి అగ్రి ఫార్మ్‌లో ప్రత్యేకం: {{2}}. ఆఫర్ {{3}} వరకు. ⏳ షోరూమ్‌కు రండి (సోమ–శని, 9–6) — ఇండియన్ ఆయిల్ బంక్ ఎదురుగా, ఆలంపురం, తాడేపల్లిగూడెం. వివరాలకు రిప్లై చేయండి! ✅",
       "footer_text": "షరతులు వర్తిస్తాయి",
       "buttons": [
