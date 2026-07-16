@@ -248,6 +248,11 @@ export async function engineSendMedia(
     sender_type: 'bot',
     content_type: args.kind,
     content_text: args.caption ?? null,
+    // Persist the link we just sent. Without it the row says "image"
+    // but carries no image: the customer sees the photo on WhatsApp
+    // while staff open the inbox to an empty bubble and cannot tell
+    // what the agent actually sent.
+    media_url: args.link,
     message_id: waMessageId,
     status: 'sent',
   })
