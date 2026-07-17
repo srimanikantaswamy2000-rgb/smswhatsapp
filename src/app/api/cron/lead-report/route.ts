@@ -73,11 +73,13 @@ export async function GET(request: Request) {
   const ownerUserId = cfg.user_id as string
 
   // 1) Inbound messages in the window, joined to their conversation's
-  //    contact. sender_type 'contact' = customer-authored.
+  //    contact. sender_type 'customer' = customer-authored (the value
+  //    the webhook writes — 'contact' here previously matched nothing,
+  //    so every report said "no enquiries").
   const { data: inbound, error: msgErr } = await db
     .from('messages')
     .select('content_text, created_at, conversation_id, conversations!inner(id, contact_id, account_id)')
-    .eq('sender_type', 'contact')
+    .eq('sender_type', 'customer')
     .eq('conversations.account_id', accountId)
     .gte('created_at', since)
     .limit(2000)
@@ -262,7 +264,7 @@ export async function GET(request: Request) {
       .from('messages')
       .select('id')
       .eq('conversation_id', lead.conversationId)
-      .neq('sender_type', 'contact')
+      .neq('sender_type', 'customer')
       .gte('created_at', since)
       .like('content_text', `${FOLLOWUP_MARKER}%`)
       .limit(1)

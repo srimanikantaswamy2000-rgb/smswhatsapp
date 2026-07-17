@@ -70,7 +70,21 @@ export function buildSystemPrompt(args: {
   knowledge?: string[]
 }): string {
   const { userPrompt, mode, knowledge } = args
+  // The model has no clock — without this, "Monday" in a booking can
+  // resolve to a past or wrong date. IST because the business and all
+  // its customers are in India.
+  const nowIst = new Date().toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  })
   const parts: string[] = [
+    `Current date and time (IST): ${nowIst}. When the customer names a weekday for a visit or demo ("Monday", "సోమవారం"), it means the NEXT upcoming occurrence of that day from today — work out the real calendar date from the current date above.`,
     'You are a customer-messaging assistant for a business that uses a WhatsApp CRM. ' +
       'You are shown the recent WhatsApp conversation between the business (assistant) and a customer (user). ' +
       'Write the next reply the business should send to the customer.',

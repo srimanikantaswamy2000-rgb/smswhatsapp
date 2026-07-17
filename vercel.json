@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/lead-report",
       "schedule": "30 12 * * *"
+    },
+    {
+      "path": "/api/cron/follow-up",
+      "schedule": "0 * * * *"
     }
   ]
 }

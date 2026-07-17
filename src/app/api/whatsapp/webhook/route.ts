@@ -871,7 +871,15 @@ async function processMessage(
   // up with the machines' photos/videos ([[MEDIA:...]]) and a
   // qualifying question — the sales process starts right off the tap.
   // Utility taps (call, demo, EMI, offers…) stay automation-only.
-  const PRODUCT_MENU_TAPS = new Set(['menu_tractors', 'menu_harvesters', 'menu_tillers'])
+  // followup_* taps come from the pre-24h follow-up nudge — the AI
+  // asks for a preferred day/time and books via [[VISIT:...]].
+  const PRODUCT_MENU_TAPS = new Set([
+    'menu_tractors',
+    'menu_harvesters',
+    'menu_tillers',
+    'followup_appointment',
+    'followup_showroom',
+  ])
   const aiHandlesTap =
     interactiveReplyId !== null && PRODUCT_MENU_TAPS.has(interactiveReplyId)
   const aiEligible =
