@@ -47,7 +47,9 @@ export function BrandLogo({ size = 36, className }: BrandLogoProps) {
           alt="Sri Manikanta Swamy Agri Farm"
           fill
           sizes={`${size}px`}
-          className="object-cover object-top"
+          // Portrait source — the deity's face sits ~30% down, so bias
+          // the square crop there instead of the blurred top edge.
+          className="object-cover object-[50%_30%]"
           onError={() => setFailed(true)}
           priority
         />

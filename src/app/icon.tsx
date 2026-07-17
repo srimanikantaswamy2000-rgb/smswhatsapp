@@ -29,7 +29,14 @@ export default function Icon() {
         alt=""
         width={32}
         height={32}
-        style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 16 }}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          // Match BrandLogo: bias the square crop to the deity's face.
+          objectPosition: "50% 30%",
+          borderRadius: 16,
+        }}
       />
     ) : (
       <div
