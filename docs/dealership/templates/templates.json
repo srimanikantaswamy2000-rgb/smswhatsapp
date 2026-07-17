@@ -31,7 +31,7 @@
       }
     },
     {
-      "name": "tractor_social_te",
+      "name": "tractor_social_te_2",
       "category": "Marketing",
       "language": "te",
       "header_type": "image",
@@ -148,7 +148,7 @@
       }
     },
     {
-      "name": "seasonal_promo_te",
+      "name": "seasonal_promo_te_2",
       "category": "Marketing",
       "language": "te",
       "header_type": "image",
@@ -208,7 +208,7 @@
       }
     },
     {
-      "name": "seasonal_promo_video_te",
+      "name": "seasonal_promo_video_te_2",
       "category": "Marketing",
       "language": "te",
       "header_type": "video",
@@ -268,7 +268,7 @@
       }
     },
     {
-      "name": "new_launch_video_te",
+      "name": "new_launch_video_te_2",
       "category": "Marketing",
       "language": "te",
       "header_type": "video",
@@ -322,7 +322,7 @@
       }
     },
     {
-      "name": "new_launch_te",
+      "name": "new_launch_te_2",
       "category": "Marketing",
       "language": "te",
       "header_type": "image",
@@ -375,7 +375,7 @@
       }
     },
     {
-      "name": "harvester_promo_te",
+      "name": "harvester_promo_te_2",
       "category": "Marketing",
       "language": "te",
       "header_type": "image",
@@ -430,7 +430,7 @@
       }
     },
     {
-      "name": "offer_generic_te",
+      "name": "offer_generic_te_2",
       "category": "Marketing",
       "language": "te",
       "header_type": "image",
@@ -480,7 +480,7 @@
       }
     },
     {
-      "name": "appointment_reminder_te",
+      "name": "appointment_reminder_te_2",
       "category": "Utility",
       "language": "te",
       "body_text": "నమస్తే {{1}}, {{2}} న {{3}} కి శ్రీ మణికంఠ స్వామి అగ్రి ఫార్మ్ షోరూమ్ సందర్శన గుర్తు. 📍 ఇండియన్ ఆయిల్ బంక్ ఎదురుగా, ఆలంపురం, తాడేపల్లిగూడెం. సమయం మార్చాలంటే రిప్లై చేయండి.",
@@ -527,7 +527,7 @@
       }
     },
     {
-      "name": "visit_followup_te",
+      "name": "visit_followup_te_2",
       "category": "Utility",
       "language": "te",
       "body_text": "నమస్తే {{1}}, శ్రీ మణికంఠ స్వామి అగ్రి ఫార్మ్‌కు వచ్చినందుకు ధన్యవాదాలు! 🙏 మీరు చూసిన {{2}} గురించి ఏవైనా ప్రశ్నలు — ధర, ఫైనాన్స్, ఇన్సూరెన్స్, TR/PR — ఇక్కడే రిప్లై చేయండి. మీ పొలంలోనే ఉచిత డెమో కూడా ఏర్పాటు చేస్తాము. 🚜",

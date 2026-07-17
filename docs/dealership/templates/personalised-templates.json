@@ -13,7 +13,7 @@
   },
   "templates": [
     {
-      "name": "harvester_promo_local_te",
+      "name": "harvester_promo_local_te_2",
       "category": "Marketing",
       "language": "te",
       "header_type": "image",
@@ -149,7 +149,7 @@
       }
     },
     {
-      "name": "village_demo_invite_te",
+      "name": "village_demo_invite_te_2",
       "category": "Marketing",
       "language": "te",
       "header_type": "image",
