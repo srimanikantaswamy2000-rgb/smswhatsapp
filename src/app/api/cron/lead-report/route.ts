@@ -103,10 +103,9 @@ export async function GET(request: Request) {
     byContact.set(conv.contact_id, agg)
   }
 
-  if (byContact.size === 0) {
-    return NextResponse.json({ leads: 0, followUps: 0, note: 'no enquiries in window' })
-  }
-
+  // No early return on zero enquiries — the team still gets the daily
+  // "no enquiries" report, which doubles as a heartbeat that the
+  // automation is alive. (`.in('id', [])` below just returns no rows.)
   const contactIds = [...byContact.keys()]
 
   // Contact names/phones + intent tags in two bulk queries.
