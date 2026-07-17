@@ -10,6 +10,8 @@ import {
   validateSendMessageParams,
   SendMessageError,
 } from '@/lib/whatsapp/send-message'
+import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe'
+import { normalizePhone } from '@/lib/whatsapp/phone-utils'
 
 // The dashboard's outbound-send endpoint. It owns auth, per-user rate
 // limiting, and the two ways the UI targets a thread — an existing
@@ -67,6 +69,11 @@ export async function POST(request: Request) {
       // yet (Contact detail → Send template) — we find-or-create one below.
       conversation_id: conversationIdInput,
       contact_id,
+      // `phone` initiates a chat with a number that may not be a
+      // contact yet — the contact is found-or-created (saved to the
+      // database) before sending. `contact_name` optionally names it.
+      phone,
+      contact_name,
       message_type,
       content_text,
       media_url,
@@ -79,11 +86,11 @@ export async function POST(request: Request) {
       reply_to_message_id,
     } = body
 
-    if ((!conversationIdInput && !contact_id) || !message_type) {
+    if ((!conversationIdInput && !contact_id && !phone) || !message_type) {
       return NextResponse.json(
         {
           error:
-            'Either conversation_id or contact_id, plus message_type, are required',
+            'Either conversation_id, contact_id, or phone, plus message_type, are required',
         },
         { status: 400 }
       )
@@ -113,6 +120,50 @@ export async function POST(request: Request) {
     // reuses the shared send core below.
     let conversationId: string | null = null
 
+    // phone path: find-or-create the contact so every outbound number
+    // ends up saved in the database, then fall through to the
+    // contact-conversation resolution below.
+    let resolvedContactId: string | undefined = contact_id
+    if (!conversationIdInput && !contact_id && phone) {
+      const normalized = normalizePhone(String(phone))
+      if (normalized.length < 10) {
+        return NextResponse.json(
+          { error: 'Enter a valid phone number with country code' },
+          { status: 400 },
+        )
+      }
+      const existing = await findExistingContact(supabase, accountId, normalized)
+      if (existing) {
+        resolvedContactId = existing.id
+      } else {
+        const { data: created, error: createErr } = await supabase
+          .from('contacts')
+          .insert({
+            account_id: accountId,
+            user_id: user.id,
+            phone: normalized,
+            name: contact_name?.trim() || null,
+          })
+          .select('id')
+          .single()
+        if (createErr) {
+          // Unique-index race: another request saved this number first.
+          if (isUniqueViolation(createErr)) {
+            const raced = await findExistingContact(supabase, accountId, normalized)
+            if (raced) resolvedContactId = raced.id
+          }
+          if (!resolvedContactId) {
+            return NextResponse.json(
+              { error: 'Failed to save the contact' },
+              { status: 500 },
+            )
+          }
+        } else {
+          resolvedContactId = created.id
+        }
+      }
+    }
+
     if (conversationIdInput) {
       const { data, error: convError } = await supabase
         .from('conversations')
@@ -134,7 +185,7 @@ export async function POST(request: Request) {
       const { data: contactRow, error: contactErr } = await supabase
         .from('contacts')
         .select('id')
-        .eq('id', contact_id)
+        .eq('id', resolvedContactId)
         .eq('account_id', accountId)
         .maybeSingle()
 
@@ -149,7 +200,7 @@ export async function POST(request: Request) {
         supabase,
         accountId,
         user.id,
-        contact_id
+        contactRow.id
       )
       if (!resolved) {
         return NextResponse.json(
