@@ -473,7 +473,16 @@ async function handleStatusUpdate(status: {
  * Runs on a best-effort basis — failures here must not break the
  * main inbound-message flow, so errors are swallowed with a log.
  */
-async function flagBroadcastReplyIfAny(accountId: string, contactId: string) {
+/**
+ * Returns true when this inbound is the contact's FIRST reply to a
+ * still-unreplied broadcast — i.e. a customer responding to a
+ * marketing/promotion blast. Callers use that to re-run the welcome
+ * (greeting + menu) automation for them.
+ */
+async function flagBroadcastReplyIfAny(
+  accountId: string,
+  contactId: string,
+): Promise<boolean> {
   try {
     // Most recent outbound broadcast in this account that hasn't
     // been replied to yet. Account-scoped so a shared inbox reply
@@ -488,7 +497,7 @@ async function flagBroadcastReplyIfAny(accountId: string, contactId: string) {
       .order('created_at', { ascending: false })
       .limit(1)
 
-    if (error || !recs || recs.length === 0) return
+    if (error || !recs || recs.length === 0) return false
 
     const row = recs[0]
     const { error: updErr } = await supabaseAdmin()
@@ -498,9 +507,12 @@ async function flagBroadcastReplyIfAny(accountId: string, contactId: string) {
 
     if (updErr) {
       console.error('Error marking broadcast recipient replied:', updErr)
+      return false
     }
+    return true
   } catch (err) {
     console.error('flagBroadcastReplyIfAny failed:', err)
+    return false
   }
 }
 
@@ -732,8 +744,10 @@ async function processMessage(
 
   // If this contact was a recent broadcast recipient, flag the reply
   // so the broadcast's `replied_count` advances (via the aggregate
-  // trigger installed in migration 003).
-  await flagBroadcastReplyIfAny(accountId, contactRecord.id)
+  // trigger installed in migration 003). True exactly once per
+  // broadcast: the customer's first response to a promotion — treated
+  // below like a first contact (welcome greeting + menu).
+  const isBroadcastReply = await flagBroadcastReplyIfAny(accountId, contactRecord.id)
 
   // ============================================================
   // Flow runner dispatch.
@@ -826,7 +840,11 @@ async function processMessage(
   // so users can pick whichever semantic they want; an automation that
   // listens to only one trigger runs only when that trigger matches.
   if (contactOutcome.wasCreated) automationTriggers.unshift('new_contact_created')
-  if (isFirstInboundMessage) automationTriggers.unshift('first_inbound_message')
+  // A first reply to a marketing broadcast re-runs the welcome
+  // (greeting + menu) automation, same as a true first contact — the
+  // customer just raised their hand after a promotion.
+  if (isFirstInboundMessage || isBroadcastReply)
+    automationTriggers.unshift('first_inbound_message')
   for (const triggerType of automationTriggers) {
     runAutomationsForTrigger({
       accountId,

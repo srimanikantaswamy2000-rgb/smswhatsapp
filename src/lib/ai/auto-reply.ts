@@ -149,9 +149,10 @@ export async function dispatchInboundToAiReply(
     const willAutoRespond = (autoRes.data ?? []).some(
       (a) =>
         a.trigger_type === 'new_message_received' ||
-        triggerMatches(a as Parameters<typeof triggerMatches>[0], {
-          message_text: args.inboundText ?? '',
-        }),
+        (a.trigger_type === 'keyword_match' &&
+          triggerMatches(a as Parameters<typeof triggerMatches>[0], {
+            message_text: args.inboundText ?? '',
+          })),
     )
     if (willAutoRespond) return
 
