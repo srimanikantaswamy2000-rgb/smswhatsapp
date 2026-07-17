@@ -1,0 +1,25 @@
+# Hourly pre-24h follow-up nudges.
+#
+# Vercel Hobby only allows daily crons, so the hourly trigger for
+# /api/cron/follow-up lives here instead. The endpoint itself is
+# idempotent (one nudge per conversation per customer window), so
+# GitHub's fuzzy cron timing is fine.
+#
+# Required repo secret: AUTOMATION_CRON_SECRET — must match the
+# AUTOMATION_CRON_SECRET env var on the Vercel deployment.
+name: follow-up-queue
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+jobs:
+  nudge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger follow-up queue
+        run: |
+          curl --fail-with-body -sS \
+            -H "x-cron-secret: ${{ secrets.AUTOMATION_CRON_SECRET }}" \
+            "https://whatsapp-crm-test.vercel.app/api/cron/follow-up"
