@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ModeToggle } from "@/components/layout/mode-toggle";
+import { BrandLogo } from "@/components/layout/brand-logo";
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "dashboard",
@@ -68,6 +69,11 @@ export function Header({ onOpenSidebar }: HeaderProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
+        {/* Brand mark on mobile — the sidebar (and its logo) is hidden
+            there, so the header carries the identity instead. */}
+        <span className="lg:hidden">
+          <BrandLogo size={28} />
+        </span>
         <h1 className="truncate text-base font-semibold text-foreground sm:text-lg">
           {t(titleKey as string)}
         </h1>

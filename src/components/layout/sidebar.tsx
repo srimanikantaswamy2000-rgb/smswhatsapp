@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/layout/brand-logo";
 import { useAuth } from "@/hooks/use-auth";
 import { useTotalUnread } from "@/hooks/use-total-unread";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
@@ -192,14 +194,18 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
       >
         {/* Logo row. On mobile we put a close button here; on desktop the
             close button is hidden since the sidebar is always-visible. */}
-        <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <MessageSquare className="h-4 w-4" />
-            </div>
-            <span className="text-sm font-semibold text-foreground">
+        <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
+          <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5">
+            <BrandLogo size={36} />
+            <motion.span
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.15, duration: 0.4 }}
+              className="line-clamp-2 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 bg-clip-text text-[13px] font-bold leading-tight text-transparent dark:from-amber-300 dark:via-orange-300 dark:to-amber-400"
+              title={t("title")}
+            >
               {t("title")}
-            </span>
+            </motion.span>
           </Link>
           <button
             type="button"
@@ -213,7 +219,15 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
 
         {/* Main navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-4">
-          <ul className="flex flex-col gap-1">
+          <motion.ul
+            className="flex flex-col gap-1"
+            initial="hidden"
+            animate="show"
+            variants={{
+              hidden: {},
+              show: { transition: { staggerChildren: 0.035 } },
+            }}
+          >
             {navItems.map((item) => {
               const isActive =
                 pathname === item.href ||
@@ -230,17 +244,33 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                 item.href === "/notifications" && unreadNotifications > 0;
 
               return (
-                <li key={item.href}>
+                <motion.li
+                  key={item.href}
+                  variants={{
+                    hidden: { opacity: 0, x: -14 },
+                    show: { opacity: 1, x: 0 },
+                  }}
+                >
                   <Link
                     href={item.href}
                     className={cn(
                       // Taller on mobile so fingers can hit the row reliably (≥44px).
-                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors lg:py-2",
+                      // `relative` so the sliding active pill can sit behind the row.
+                      "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors lg:py-2",
                       isActive
-                        ? "bg-primary/10 text-primary"
+                        ? "text-primary"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
+                    {isActive && (
+                      // One shared pill glides between rows as the route
+                      // changes (framer-motion layoutId animation).
+                      <motion.span
+                        layoutId="sidebar-active-pill"
+                        transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                        className="absolute inset-0 rounded-lg bg-primary/10 ring-1 ring-primary/20"
+                      />
+                    )}
                     <item.icon className="h-4 w-4" />
                     <span className="flex-1">{t(item.labelKey as string)}</span>
                     {item.beta && (
@@ -269,10 +299,10 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                       </span>
                     )}
                   </Link>
-                </li>
+                </motion.li>
               );
             })}
-          </ul>
+          </motion.ul>
 
           <div className="my-4 border-t border-border" />
 
@@ -284,12 +314,19 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                   <Link
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors lg:py-2",
+                      "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors lg:py-2",
                       isActive
-                        ? "bg-primary/10 text-primary"
+                        ? "text-primary"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
+                    {isActive && (
+                      <motion.span
+                        layoutId="sidebar-active-pill"
+                        transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                        className="absolute inset-0 rounded-lg bg-primary/10 ring-1 ring-primary/20"
+                      />
+                    )}
                     <item.icon className="h-4 w-4" />
                     {t(item.labelKey as string)}
                   </Link>
