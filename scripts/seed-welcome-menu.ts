@@ -20,10 +20,13 @@ config({ path: '.env.local' });
 const MENU_KEYWORDS = ['menu', 'మెనూ', 'మెను', 'options', 'start'];
 const OFFER_KEYWORDS = ['offer', 'offers', 'ఆఫర్', 'ఆఫర్లు', 'discount', 'promotion'];
 
-const GREETING_BODY =
+const GREETING_TEXT =
   '🙏 నమస్తే! శ్రీ మణికంఠ స్వామి అగ్రి ఫార్మ్‌కు స్వాగతం — మీ కుబోటా డీలర్, తాడేపల్లిగూడెం.\n' +
   'Welcome to Sri Manikanta Swamy Agri Farm — your Kubota dealer, Tadepalligudem.\n\n' +
-  'మీకు ఏం కావాలో ఎంచుకోండి · Please choose what you need. తెలుగు లేదా English — ఏ భాషలోనైనా రిప్లై చేయవచ్చు.';
+  'తెలుగు లేదా English — ఏ భాషలోనైనా రిప్లై చేయవచ్చు. Reply in Telugu or English.';
+
+const WELCOME_MENU_BODY =
+  'మీకు ఏం కావాలో ఎంచుకోండి 👇\nPlease choose what you need.';
 
 const OFFERS_TEXT =
   '🎁 ప్రస్తుత ఆఫర్లు / Current offers:\n\n' +
@@ -132,10 +135,12 @@ async function main() {
     console.log(`automation ready: ${name}`);
   };
 
-  // 3) Welcome: greeting + menu in a single list message on the very
-  //    first inbound from a contact.
+  // 3) Welcome: greeting message immediately followed by the
+  //    interactive menu, on the very first inbound from a contact
+  //    (and on a first reply to a broadcast — see the webhook).
   await upsertAutomation('Welcome — greeting + menu', 'first_inbound_message', {}, [
-    { step_type: 'send_list', step_config: { ...listConfig, body: GREETING_BODY } },
+    { step_type: 'send_message', step_config: { text: GREETING_TEXT } },
+    { step_type: 'send_list', step_config: { ...listConfig, body: WELCOME_MENU_BODY } },
   ]);
 
   // 4) Offers — menu row tap + keyword.

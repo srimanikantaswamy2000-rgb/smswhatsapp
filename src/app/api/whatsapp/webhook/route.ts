@@ -866,9 +866,17 @@ async function processMessage(
   // spare parts and machines). Awaited inside `after()` (same reason as
   // the webhook dispatch below); `dispatchInboundToAiReply` owns its
   // eligibility gates + try/catch and never throws.
+  // Product-category menu taps ALSO go to the AI: the interactive_reply
+  // automation answers with the category overview, and the AI follows
+  // up with the machines' photos/videos ([[MEDIA:...]]) and a
+  // qualifying question — the sales process starts right off the tap.
+  // Utility taps (call, demo, EMI, offers…) stay automation-only.
+  const PRODUCT_MENU_TAPS = new Set(['menu_tractors', 'menu_harvesters', 'menu_tillers'])
+  const aiHandlesTap =
+    interactiveReplyId !== null && PRODUCT_MENU_TAPS.has(interactiveReplyId)
   const aiEligible =
     inboundText.trim().length > 0 || (message.type === 'image' && mediaUrl)
-  if (!flowConsumed && !interactiveReplyId && aiEligible) {
+  if (!flowConsumed && (!interactiveReplyId || aiHandlesTap) && aiEligible) {
     await dispatchInboundToAiReply({
       accountId,
       conversationId: conversation.id,
