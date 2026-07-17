@@ -14,6 +14,7 @@ import {
   Bot,
   CalendarDays,
   Crown,
+  FileText,
   GitBranch,
   LayoutDashboard,
   LogOut,
@@ -106,6 +107,7 @@ const navItems: NavItem[] = [
   { href: "/appointments", labelKey: "appointments", icon: CalendarDays },
   { href: "/inventory", labelKey: "inventory", icon: Package },
   { href: "/catalog", labelKey: "catalog", icon: Tractor },
+  { href: "/reports", labelKey: "reports", icon: FileText },
 ];
 
 const bottomNavItems = [

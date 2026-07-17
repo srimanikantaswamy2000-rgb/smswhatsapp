@@ -22,6 +22,8 @@ export interface LeadInput {
   conversationId: string;
   inboundTexts: string[];
   tags: string[];
+  mandal?: string | null;
+  district?: string | null;
 }
 
 export type LeadGrade = 'hot' | 'warm' | 'cold';
@@ -30,6 +32,57 @@ export interface ScoredLead extends LeadInput {
   score: number;
   grade: LeadGrade;
   signals: string[];
+  /** Products the customer named in their messages (English labels). */
+  products: string[];
+  /** "Mandal, District" when the contact row has them. */
+  place: string | null;
+  /** What they care about — finance, demo, price, exchange, parts, service. */
+  preferences: string[];
+  /** Their most recent message, for context in the report. */
+  lastMessage: string | null;
+}
+
+// Model-number vocabulary from the dealership's catalogue. Matched
+// against raw customer text (English, Telugu script, or romanised),
+// so the patterns are looser than the canonical IDs.
+const PRODUCT_PATTERNS: Array<[RegExp, string]> = [
+  [/b\s*-?\s*2441/i, 'Kubota B2441 (24 HP compact)'],
+  [/b\s*-?\s*2741/i, 'Kubota B2741 (27 HP compact)'],
+  [/l\s*-?\s*4508/i, 'Kubota L4508 (45 HP dammu)'],
+  [/mu\s*-?\s*4201|4201/i, 'Kubota MU4201 (42 HP)'],
+  [/mu\s*-?\s*4501|4501/i, 'Kubota MU4501 (45 HP bestseller)'],
+  [/mu\s*-?\s*5502|5502/i, 'Kubota MU5502 (55 HP flagship)'],
+  [/dc\s*-?\s*68|68\s*g|king\s*pro/i, 'Kubota DC-68G harvester'],
+  [/dc\s*-?\s*99|harvesking/i, 'Kubota DC-99 harvester'],
+];
+// Generic fallbacks — only reported when no specific model matched.
+const GENERIC_HARVESTER = /harvester|కోత|హార్వెస్టర్/i;
+const GENERIC_TRACTOR = /tractor|ట్రాక్టర్/i;
+
+const PREFERENCE_PATTERNS: Array<[RegExp, string]> = [
+  [/emi|finance|loan|installment|ఫైనాన్స్|ఈఎంఐ|లోన్|రుణం|వాయిదా/i, 'finance/EMI'],
+  [/demo|డెమో/i, 'wants demo'],
+  [/price|cost|rate|ధర|ఖరీదు|రేటు|ఎంత/i, 'asked price'],
+  [/exchange|old tractor|పాత ట్రాక్టర్|ఎక్స్ఛేంజ్/i, 'exchange old vehicle'],
+  [/spare|\bparts?\b|విడిభాగ|స్పేర్/i, 'spare parts'],
+  [/service|repair|సర్వీస్|రిపేర్|మరమ్మత్తు/i, 'service/repair'],
+];
+
+/** Products the texts mention; specific models beat generic terms. */
+export function detectProducts(texts: string[]): string[] {
+  const joined = texts.join('\n');
+  const found = PRODUCT_PATTERNS.filter(([re]) => re.test(joined)).map(([, label]) => label);
+  if (found.length === 0) {
+    if (GENERIC_HARVESTER.test(joined)) found.push('Combine harvester (model not specified)');
+    else if (GENERIC_TRACTOR.test(joined)) found.push('Tractor (model not specified)');
+  }
+  return found;
+}
+
+/** Preference/intent labels the texts reveal. */
+export function detectPreferences(texts: string[]): string[] {
+  const joined = texts.join('\n');
+  return PREFERENCE_PATTERNS.filter(([re]) => re.test(joined)).map(([, label]) => label);
 }
 
 const INTENT_TAGS = new Set(['demo-request', 'service-request']);
@@ -58,7 +111,20 @@ export function scoreLead(input: LeadInput): ScoredLead {
   signals.push(`${input.inboundTexts.length} message${input.inboundTexts.length === 1 ? '' : 's'}`);
 
   const grade: LeadGrade = score >= 5 ? 'hot' : score >= 2 ? 'warm' : 'cold';
-  return { ...input, score, grade, signals };
+
+  const placeParts = [input.mandal, input.district].filter(
+    (p): p is string => !!p && p.trim() !== '',
+  );
+  return {
+    ...input,
+    score,
+    grade,
+    signals,
+    products: detectProducts(input.inboundTexts),
+    place: placeParts.length > 0 ? placeParts.join(', ') : null,
+    preferences: detectPreferences(input.inboundTexts),
+    lastMessage: input.inboundTexts.at(-1) ?? null,
+  };
 }
 
 /** Telugu-script sniff — follow-ups go out in the customer's language. */
@@ -87,8 +153,10 @@ export function buildReportText(leads: ScoredLead[], windowLabel: string): strin
   const warm = leads.filter((l) => l.grade === 'warm');
   const cold = leads.filter((l) => l.grade === 'cold');
 
-  const line = (l: ScoredLead) =>
-    `• ${l.name || l.phone} (${l.phone}) — score ${l.score}: ${l.signals.join('; ')}`;
+  const line = (l: ScoredLead) => {
+    const extras = [l.products[0], l.place, ...l.preferences].filter(Boolean).join(' · ');
+    return `• ${l.name || l.phone} (${l.phone})${extras ? ` — ${extras}` : ''} — score ${l.score}: ${l.signals.join('; ')}`;
+  };
 
   const parts = [
     `📊 Daily lead report — ${windowLabel}`,

@@ -18,7 +18,7 @@ import { config } from 'dotenv';
 config({ path: '.env.local' });
 
 const APPLY = process.argv.includes('--apply');
-const MODEL = 'anthropic/claude-sonnet-4.6';
+const MODEL = 'anthropic/claude-haiku-4.5';
 const PROMPT_FILE = 'docs/dealership/system-prompt.md';
 // Per-conversation auto-reply cap. A sales chat needs plenty of turns;
 // 8 (the old value) left customers hanging mid-conversation.

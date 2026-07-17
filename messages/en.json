@@ -28,6 +28,7 @@
     "appointments": "Appointments",
     "inventory": "Inventory",
     "catalog": "Catalog",
+    "reports": "Reports",
     "settings": "Settings",
     "beta": "Beta",
     "unreadConversations": "{count} unread {count, plural, =1 {conversation} other {conversations}}",

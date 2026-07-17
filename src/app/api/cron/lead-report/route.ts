@@ -28,7 +28,14 @@ import { buildLeadReportPdf } from '@/lib/leads/report-pdf'
  *      A lead already followed up inside the window is skipped, so
  *      re-running the cron can't spam anyone.
  */
-const TEAM_REPORT_PHONE = process.env.TEAM_REPORT_PHONE ?? '918500666928'
+const TEAM_REPORT_PHONES = (
+  process.env.TEAM_REPORT_PHONES ??
+  process.env.TEAM_REPORT_PHONE ??
+  '918639562351,919063855903,918500666928,919493652555'
+)
+  .split(',')
+  .map((p) => p.replace(/\D/g, ''))
+  .filter(Boolean)
 /** First characters of every follow-up — used to detect an already-sent one. */
 const FOLLOWUP_MARKER = '🙏 '
 
@@ -37,7 +44,16 @@ export async function GET(request: Request) {
   if (!expected) {
     return NextResponse.json({ error: 'cron not configured' }, { status: 503 })
   }
-  if (request.headers.get('x-cron-secret') !== expected) {
+  // Two callers: external pingers send `x-cron-secret`; Vercel Cron
+  // sends `Authorization: Bearer ${CRON_SECRET}` and can't set custom
+  // headers, so accept either (CRON_SECRET should equal
+  // AUTOMATION_CRON_SECRET in the Vercel env).
+  const bearer = request.headers.get('authorization')
+  const vercelSecret = process.env.CRON_SECRET ?? expected
+  const authorized =
+    request.headers.get('x-cron-secret') === expected ||
+    bearer === `Bearer ${vercelSecret}`
+  if (!authorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -96,7 +112,7 @@ export async function GET(request: Request) {
   // Contact names/phones + intent tags in two bulk queries.
   const { data: contacts } = await db
     .from('contacts')
-    .select('id, name, phone')
+    .select('id, name, phone, mandal, district')
     .in('id', contactIds)
   const contactById = new Map((contacts ?? []).map((c) => [c.id, c]))
 
@@ -125,6 +141,8 @@ export async function GET(request: Request) {
         conversationId: agg.conversationId,
         inboundTexts: agg.texts,
         tags: tagsByContact.get(id) ?? [],
+        mandal: (c as { mandal?: string | null }).mandal ?? null,
+        district: (c as { district?: string | null }).district ?? null,
       }
       return scoreLead(input)
     })
@@ -172,17 +190,25 @@ export async function GET(request: Request) {
     console.error('[lead-report] PDF build/upload failed:', err)
   }
 
-  let reportSentViaWhatsApp = false
-  let pdfSentViaWhatsApp = false
-  const teamDigits = TEAM_REPORT_PHONE.replace(/\D/g, '')
-  const { data: teamContact } = await db
-    .from('contacts')
-    .select('id, phone')
-    .eq('account_id', accountId)
-    .or(`phone.eq.${teamDigits},phone.eq.+${teamDigits}`)
-    .limit(1)
-    .maybeSingle()
-  if (teamContact) {
+  // Deliver to every team number that has a conversation with the
+  // business (Meta only allows free-form sends inside an open customer
+  // window — each recipient must have messaged the business number at
+  // least once, ideally within 24h). Failures are per-recipient.
+  const delivery: Record<string, { text: boolean; pdf: boolean; note?: string }> = {}
+  for (const teamDigits of TEAM_REPORT_PHONES) {
+    const result = { text: false, pdf: false } as { text: boolean; pdf: boolean; note?: string }
+    delivery[teamDigits] = result
+    const { data: teamContact } = await db
+      .from('contacts')
+      .select('id, phone')
+      .eq('account_id', accountId)
+      .or(`phone.eq.${teamDigits},phone.eq.+${teamDigits}`)
+      .limit(1)
+      .maybeSingle()
+    if (!teamContact) {
+      result.note = 'no contact — this number must message the business once'
+      continue
+    }
     const { data: teamConv } = await db
       .from('conversations')
       .select('id, last_message_at')
@@ -190,39 +216,43 @@ export async function GET(request: Request) {
       .order('last_message_at', { ascending: false })
       .limit(1)
       .maybeSingle()
-    if (teamConv) {
+    if (!teamConv) {
+      result.note = 'no conversation'
+      continue
+    }
+    try {
+      await engineSendText({
+        accountId,
+        userId: ownerUserId,
+        conversationId: teamConv.id,
+        contactId: teamContact.id,
+        text: report,
+      })
+      result.text = true
+    } catch (err) {
+      console.error(`[lead-report] WhatsApp report send to ${teamDigits} failed:`, err)
+    }
+    // The PDF rides along as a proper document (openable/printable).
+    if (pdfUrl) {
       try {
-        await engineSendText({
+        await engineSendMedia({
           accountId,
           userId: ownerUserId,
           conversationId: teamConv.id,
           contactId: teamContact.id,
-          text: report,
+          kind: 'document',
+          link: pdfUrl,
+          caption: `Lead report — ${windowLabel}`,
+          filename: `lead-report-${dateStamp}.pdf`,
         })
-        reportSentViaWhatsApp = true
+        result.pdf = true
       } catch (err) {
-        console.error('[lead-report] WhatsApp report send failed:', err)
-      }
-      // The PDF rides along as a proper document (openable/printable).
-      if (pdfUrl) {
-        try {
-          await engineSendMedia({
-            accountId,
-            userId: ownerUserId,
-            conversationId: teamConv.id,
-            contactId: teamContact.id,
-            kind: 'document',
-            link: pdfUrl,
-            caption: `Lead report — ${windowLabel}`,
-            filename: `lead-report-${dateStamp}.pdf`,
-          })
-          pdfSentViaWhatsApp = true
-        } catch (err) {
-          console.error('[lead-report] WhatsApp PDF send failed:', err)
-        }
+        console.error(`[lead-report] WhatsApp PDF send to ${teamDigits} failed:`, err)
       }
     }
   }
+  const reportSentViaWhatsApp = Object.values(delivery).some((d) => d.text)
+  const pdfSentViaWhatsApp = Object.values(delivery).some((d) => d.pdf)
 
   // 4) Follow up every hot lead, once per window.
   let followUps = 0
@@ -260,6 +290,7 @@ export async function GET(request: Request) {
     followUps,
     reportSentViaWhatsApp,
     pdfSentViaWhatsApp,
+    delivery,
     pdfUrl,
   })
 }

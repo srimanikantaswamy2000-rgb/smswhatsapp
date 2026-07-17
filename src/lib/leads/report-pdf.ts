@@ -117,12 +117,20 @@ export async function buildLeadReportPdf(
       const name = toWinAnsi(lead.name ?? '') || '(no name)'
       ensureRoom(LINE * 2)
       drawLine(`${name} — ${lead.phone} — score ${lead.score}`, { font: bold, indent: 8 })
-      const signals = toWinAnsi(lead.signals.join('; '))
-      if (signals) {
-        for (const line of wrap(signals, font, 9, contentWidth - 16)) {
-          drawLine(line, { size: 9, color: rgb(0.35, 0.35, 0.35), indent: 16 })
+
+      const detail = (label: string, value: string | null) => {
+        const clean = toWinAnsi(value ?? '')
+        if (!clean) return
+        for (const line of wrap(`${label}: ${clean}`, font, 9, contentWidth - 16)) {
+          drawLine(line, { size: 9, color: rgb(0.25, 0.25, 0.25), indent: 16 })
         }
       }
+      detail('Interested in', lead.products.join(', ') || null)
+      detail('Place', lead.place)
+      detail('Prefers', lead.preferences.join(', ') || null)
+      detail('Signals', lead.signals.join('; ') || null)
+      // Telugu messages strip to nothing under WinAnsi — detail() skips them.
+      detail('Last message', lead.lastMessage ? `"${lead.lastMessage.slice(0, 160)}"` : null)
       y -= 4
     }
   }
