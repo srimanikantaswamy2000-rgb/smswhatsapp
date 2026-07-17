@@ -122,34 +122,42 @@ export async function searchParts(
   // unless the customer literally asked for one.
   const scores = new Map<string, { row: PartMatch; hits: number }>()
   const SELECT = 'part_number, part_name, category, price, stock_qty'
-  for (const token of tokens) {
-    const clean = token.replace(/[%_]/g, '')
-    const pattern = `%${clean}%`
-    const t = clean.toLowerCase()
 
-    // Two queries per token, NOT one .or() — a single query's row limit
-    // lets hundreds of category-only rows (every bolt in the CLUTCH
-    // chapter) crowd the actual name matches out of the result window.
-    const { data: named } = await db
-      .from('parts')
-      .select(SELECT)
-      .eq('user_id', userId)
-      .or(`part_name.ilike.${pattern},part_number.ilike.${pattern}`)
-      .limit(30)
-    for (const row of (named ?? []) as PartMatch[]) {
+  // Two queries per token, NOT one .or() — a single query's row limit
+  // lets hundreds of category-only rows (every bolt in the CLUTCH
+  // chapter) crowd the actual name matches out of the result window.
+  // All queries run concurrently: this sits on the customer's reply
+  // latency, so serial round-trips are not acceptable.
+  const perToken = await Promise.all(
+    tokens.map(async (token) => {
+      const clean = token.replace(/[%_]/g, '')
+      const pattern = `%${clean}%`
+      const [named, byCategory] = await Promise.all([
+        db
+          .from('parts')
+          .select(SELECT)
+          .eq('user_id', userId)
+          .or(`part_name.ilike.${pattern},part_number.ilike.${pattern}`)
+          .limit(30),
+        db
+          .from('parts')
+          .select(SELECT)
+          .eq('user_id', userId)
+          .ilike('category', pattern)
+          .limit(20),
+      ])
+      return { token: clean.toLowerCase(), named, byCategory }
+    }),
+  )
+
+  for (const { token: t, named, byCategory } of perToken) {
+    for (const row of (named.data ?? []) as PartMatch[]) {
       const numberHit = row.part_number.toLowerCase().includes(t)
       const entry = scores.get(row.part_number) ?? { row, hits: 0 }
       entry.hits += numberHit ? 6 : 3
       scores.set(row.part_number, entry)
     }
-
-    const { data: byCategory } = await db
-      .from('parts')
-      .select(SELECT)
-      .eq('user_id', userId)
-      .ilike('category', pattern)
-      .limit(20)
-    for (const row of (byCategory ?? []) as PartMatch[]) {
+    for (const row of (byCategory.data ?? []) as PartMatch[]) {
       const entry = scores.get(row.part_number) ?? { row, hits: 0 }
       entry.hits += 1
       scores.set(row.part_number, entry)

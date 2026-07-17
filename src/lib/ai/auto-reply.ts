@@ -17,6 +17,7 @@ import {
   resolveMediaForSend,
 } from './media'
 import { parseVisitDirective } from './visit'
+import { triggerMatches } from '@/lib/automations/engine'
 import {
   extractPartTokens,
   searchParts,
@@ -32,6 +33,9 @@ interface DispatchArgs {
   /** The account's WhatsApp config owner, used for the outbound send's
    *  audit columns (mirrors how the flow runner passes it through). */
   configOwnerUserId: string
+  /** The inbound message's text, used to decide whether a keyword
+   *  automation will answer it (in which case the AI stands down). */
+  inboundText?: string
 }
 
 /**
@@ -61,37 +65,22 @@ export async function dispatchInboundToAiReply(
   try {
     const db = supabaseAdmin()
 
-    const config = await loadAiConfig(db, accountId)
-    if (!config || !config.autoReplyEnabled) return
-
-    // Deterministic, user-configured responders win over the LLM — the
-    // caller already excludes messages a Flow consumed. Message-level
-    // automations (`new_message_received` / `keyword_match`) are
-    // dispatched independently for this same inbound and may send their
-    // own reply, so if the account has any active one we stand down to
-    // avoid double-texting the customer. (Relationship triggers like
-    // `first_inbound_message` don't count — they're not per-message
-    // auto-responders.)
-    const { data: autoResponders } = await db
-      .from('automations')
-      .select('id')
-      .eq('account_id', accountId)
-      .eq('is_active', true)
-      .in('trigger_type', ['new_message_received', 'keyword_match'])
-      .limit(1)
-    if (autoResponders && autoResponders.length > 0) return
-
-    const { data: conv, error: convErr } = await db
-      .from('conversations')
-      .select('assigned_agent_id, ai_autoreply_disabled, ai_reply_count')
-      .eq('id', conversationId)
-      .maybeSingle()
-    if (convErr || !conv) return
-    if (conv.assigned_agent_id) return // a human owns this thread
-    if (conv.ai_autoreply_disabled) return // handed off / turned off here
-    // Cheap early-out; the authoritative cap check is the atomic claim
-    // below (this read can race a concurrent inbound).
-    if (conv.ai_reply_count >= config.autoReplyMaxPerConversation) return
+    // Account-wide throttle on the shared BYO key. The per-conversation
+    // cap bounds one thread; this bounds a burst across many threads (a
+    // marketing blast landing 200 replies at once) so we never run the
+    // owner's key past the provider's rate limit. Over the limit → skip
+    // the auto-reply; the inbound still sits in the inbox for a human.
+    // Checked first — it's synchronous and free.
+    const acctLimit = checkRateLimit(
+      `ai-autoreply:${accountId}`,
+      RATE_LIMITS.aiAutoReplyAccount,
+    )
+    if (!acctLimit.success) {
+      console.warn(
+        `[ai auto-reply] account ${accountId} hit the per-account rate limit — skipping this inbound.`,
+      )
+      return
+    }
 
     // Resolve the latest customer photo (if any) so the vision model
     // can look at it — customers photograph spare parts and machines.
@@ -123,65 +112,86 @@ export async function dispatchInboundToAiReply(
       }
     }
 
-    const messages = await buildConversationContext(
-      db,
-      conversationId,
-      undefined,
-      resolveImage,
+    // Latency: the reply must reach the customer fast, so every
+    // independent read runs concurrently — config, gate rows, and the
+    // conversation context in one wave. Worst case we fetched context
+    // for a gated-off thread; that's one cheap indexed SELECT.
+    const [config, convRes, autoRes, messages] = await Promise.all([
+      loadAiConfig(db, accountId),
+      db
+        .from('conversations')
+        .select('assigned_agent_id, ai_autoreply_disabled, ai_reply_count')
+        .eq('id', conversationId)
+        .maybeSingle(),
+      db
+        .from('automations')
+        .select('id, trigger_type, trigger_config')
+        .eq('account_id', accountId)
+        .eq('is_active', true)
+        .in('trigger_type', ['new_message_received', 'keyword_match']),
+      buildConversationContext(db, conversationId, undefined, resolveImage),
+    ])
+
+    if (!config || !config.autoReplyEnabled) return
+
+    // Deterministic, user-configured responders win over the LLM — the
+    // caller already excludes messages a Flow consumed. Message-level
+    // automations (`new_message_received` / `keyword_match`) are
+    // dispatched independently for this same inbound and may send their
+    // own reply, so the AI stands down when one of them WILL respond to
+    // this exact message — a `new_message_received` (fires on
+    // everything), or a `keyword_match` whose keywords actually match
+    // the inbound text. A keyword automation that doesn't match must
+    // not mute the agent: the account keeps e.g. a "menu" keyword AND
+    // the AI for everything else. (Relationship triggers like
+    // `first_inbound_message` don't count — they're not per-message
+    // auto-responders.)
+    const willAutoRespond = (autoRes.data ?? []).some(
+      (a) =>
+        a.trigger_type === 'new_message_received' ||
+        triggerMatches(a as Parameters<typeof triggerMatches>[0], {
+          message_text: args.inboundText ?? '',
+        }),
     )
+    if (willAutoRespond) return
+
+    const conv = convRes.data
+    if (convRes.error || !conv) return
+    if (conv.assigned_agent_id) return // a human owns this thread
+    if (conv.ai_autoreply_disabled) return // handed off / turned off here
+    // Cheap early-out; the authoritative cap check is the atomic claim
+    // below (this read can race a concurrent inbound).
+    if (conv.ai_reply_count >= config.autoReplyMaxPerConversation) return
+
     if (messages.length === 0) return
 
-    // Account-wide throttle on the shared BYO key. The per-conversation
-    // cap bounds one thread; this bounds a burst across many threads (a
-    // marketing blast landing 200 replies at once) so we never run the
-    // owner's key past the provider's rate limit. Over the limit → skip
-    // the auto-reply; the inbound still sits in the inbox for a human.
-    const acctLimit = checkRateLimit(
-      `ai-autoreply:${accountId}`,
-      RATE_LIMITS.aiAutoReplyAccount,
-    )
-    if (!acctLimit.success) {
-      console.warn(
-        `[ai auto-reply] account ${accountId} hit the per-account rate limit — skipping this inbound.`,
-      )
-      return
-    }
-
-    // Ground the reply in the account's knowledge base (best-effort).
-    const knowledge = await retrieveKnowledge(
-      db,
-      accountId,
-      config,
-      latestUserMessage(messages),
-    )
+    // Second wave, also concurrent: knowledge retrieval + spare-parts
+    // catalogue search (both only need the transcript). Parts search is
+    // best-effort — a failure must not block the reply.
+    const recentCustomerText = messages
+      .filter((m) => m.role === 'user')
+      .slice(-3)
+      .map((m) => m.content)
+      .join('\n')
+    const [knowledge, partMatches] = await Promise.all([
+      retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
+      searchParts(
+        db,
+        configOwnerUserId,
+        extractPartTokens(recentCustomerText),
+      ).catch((err) => {
+        console.error('[ai auto-reply] parts search failed:', err)
+        return []
+      }),
+    ])
 
     let systemPrompt = buildSystemPrompt({
       userPrompt: config.systemPrompt,
       mode: 'auto_reply',
       knowledge,
     })
-
-    // Spare-parts grounding: if the recent customer text mentions
-    // anything catalogue-shaped, inject the matching genuine-part rows
-    // so the model quotes real part numbers and can place an
-    // `[[ORDER:...]]`. Best-effort — a search failure must not block
-    // the reply.
-    try {
-      const recentCustomerText = messages
-        .filter((m) => m.role === 'user')
-        .slice(-3)
-        .map((m) => m.content)
-        .join('\n')
-      const partMatches = await searchParts(
-        db,
-        configOwnerUserId,
-        extractPartTokens(recentCustomerText),
-      )
-      if (partMatches.length > 0) {
-        systemPrompt += `\n\n${buildPartsBlock(partMatches)}`
-      }
-    } catch (err) {
-      console.error('[ai auto-reply] parts search failed:', err)
+    if (partMatches.length > 0) {
+      systemPrompt += `\n\n${buildPartsBlock(partMatches)}`
     }
 
     const { text, handoff, usage } = await generateReply({

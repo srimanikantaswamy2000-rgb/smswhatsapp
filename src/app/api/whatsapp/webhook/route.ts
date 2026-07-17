@@ -856,6 +856,7 @@ async function processMessage(
       conversationId: conversation.id,
       contactId: contactRecord.id,
       configOwnerUserId,
+      inboundText,
     })
   }
 
