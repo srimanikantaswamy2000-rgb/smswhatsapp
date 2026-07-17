@@ -139,6 +139,7 @@ export function ImportModal({
     new Map()
   );
   const [importing, setImporting] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const [result, setResult] = useState<{
     imported: number;
     skipped: number;
@@ -164,7 +165,10 @@ export function ImportModal({
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files?.[0];
     if (!selected) return;
+    await processFile(selected);
+  }
 
+  async function processFile(selected: File) {
     if (/\.xls$/i.test(selected.name)) {
       toast.error(t('toastXlsOnly'));
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -441,11 +445,27 @@ export function ImportModal({
               if (e.key === 'Enter' || e.key === ' ')
                 fileInputRef.current?.click();
             }}
+            // Drag-and-drop from Explorer/Finder — without these the
+            // browser navigates away to the dropped file, which read as
+            // "the upload button doesn't work".
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              const dropped = e.dataTransfer.files?.[0];
+              if (dropped) processFile(dropped);
+            }}
             className={cn(
               'group flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-5 transition-all',
-              file
-                ? 'border-primary/35 bg-primary/[0.04]'
-                : 'hover:border-primary/40 border-border/80 bg-background/40 hover:bg-background/70'
+              dragOver
+                ? 'border-primary bg-primary/10'
+                : file
+                  ? 'border-primary/35 bg-primary/[0.04]'
+                  : 'hover:border-primary/40 border-border/80 bg-background/40 hover:bg-background/70'
             )}
           >
             {file ? (

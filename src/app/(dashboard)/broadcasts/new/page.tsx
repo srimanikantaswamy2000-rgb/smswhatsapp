@@ -113,7 +113,10 @@ export default function NewBroadcastPage() {
       template_variables: variables,
       audience_filter: {
         type: audience.type,
+        districts: audience.districts,
+        mandals: audience.mandals,
         tagIds: audience.tagIds,
+        excludeTagIds: audience.excludeTagIds,
       },
       status: 'draft',
       total_recipients: 0,

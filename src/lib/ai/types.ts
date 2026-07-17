@@ -38,6 +38,11 @@ export interface AiConfig {
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
+  /** Base64 data URL of a photo the customer sent (only populated for
+   *  the latest inbound image, so the model can identify e.g. a spare
+   *  part). Providers that can't take images ignore it — `content`
+   *  already carries a text placeholder. */
+  imageDataUrl?: string
 }
 
 /**

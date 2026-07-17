@@ -21,12 +21,30 @@
       "body_text": "నమస్తే {{1}} గారు! 🙏\n\nమీ ఊరు {{2}} చుట్టుపక్కల రైతుల కోసం కుబోటా హార్వెస్టర్లపై ప్రత్యేక ఆఫర్ — DC-68G (68 HP), DC-99 హార్వెస్‌కింగ్ (98 HP). బురద పొలాల్లోనూ పని చేసే క్రాలర్ ట్రాక్స్, రోజుకు 5.75–10 ఎకరాలు.\n\nఈ కోతకు అద్దె యంత్రాల క్యూలో ఆగకండి. ఫైనాన్స్ సౌకర్యం ఉంది, మీ పొలంలోనే ఉచిత డెమో చేసి చూపిస్తాము.",
       "footer_text": "శ్రీ మాణిక్యంత స్వామి అగ్రి ఫార్మ్ · తాడేపల్లిగూడెం",
       "buttons": [
-        { "type": "QUICK_REPLY", "text": "వివరాలు కావాలి" },
-        { "type": "QUICK_REPLY", "text": "ఉచిత డెమో" },
-        { "type": "PHONE_NUMBER", "text": "కాల్ చేయండి", "phone_number": "+919281244676" }
+        {
+          "type": "QUICK_REPLY",
+          "text": "వివరాలు కావాలి"
+        },
+        {
+          "type": "QUICK_REPLY",
+          "text": "ఉచిత డెమో"
+        },
+        {
+          "type": "PHONE_NUMBER",
+          "text": "కాల్ చేయండి",
+          "phone_number": "+918500666928"
+        }
       ],
-      "variable_binding": { "1": "name", "2": "mandal" },
-      "sample_values": { "body": ["రాకేష్", "తాడేపల్లిగూడెం"] }
+      "variable_binding": {
+        "1": "name",
+        "2": "mandal"
+      },
+      "sample_values": {
+        "body": [
+          "రాకేష్",
+          "తాడేపల్లిగూడెం"
+        ]
+      }
     },
     {
       "name": "harvester_promo_local_en",
@@ -37,12 +55,30 @@
       "body_text": "Namaste {{1}} garu! 🙏\n\nSpecial offer on Kubota harvesters for farmers around {{2}} — DC-68G (68 HP) and DC-99 Harvesking (98 HP). Crawler tracks that keep working in wet, muddy fields, 5.75–10 acres a day.\n\nDon't wait in the rental queue this harvest. Finance can be arranged, and we will bring a free demo to your own field.",
       "footer_text": "Sri Manikanta Swamy Agri Farm · Tadepalligudem",
       "buttons": [
-        { "type": "QUICK_REPLY", "text": "Send details" },
-        { "type": "QUICK_REPLY", "text": "Free demo" },
-        { "type": "PHONE_NUMBER", "text": "Call us", "phone_number": "+919281244676" }
+        {
+          "type": "QUICK_REPLY",
+          "text": "Send details"
+        },
+        {
+          "type": "QUICK_REPLY",
+          "text": "Free demo"
+        },
+        {
+          "type": "PHONE_NUMBER",
+          "text": "Call us",
+          "phone_number": "+918500666928"
+        }
       ],
-      "variable_binding": { "1": "name", "2": "mandal" },
-      "sample_values": { "body": ["Rakesh", "Tadepalligudem"] }
+      "variable_binding": {
+        "1": "name",
+        "2": "mandal"
+      },
+      "sample_values": {
+        "body": [
+          "Rakesh",
+          "Tadepalligudem"
+        ]
+      }
     },
     {
       "name": "tractor_promo_local_te",
@@ -51,14 +87,32 @@
       "header_type": "image",
       "header_media_url": "https://whatsapp-crm-test.vercel.app/media/kubota/mu4501-1.jpg",
       "body_text": "నమస్తే {{1}} గారు! 🚜\n\n{{2}} ప్రాంత రైతులకు శుభవార్త — కుబోటా MU4501 (45 HP), భారత్‌లో నం.1 బెస్ట్‌సెల్లర్. దమ్ము, మెట్ట, రవాణా అన్నీ ఒకే ట్రాక్టర్‌తో, ప్రసిద్ధ డీజిల్ ఆదాతో.\n\nమీ పొలంలోనే ఉచిత డెమో చేసి చూపిస్తాము. ఫైనాన్స్ కూడా ఏర్పాటు చేస్తాము.",
-      "footer_text": "అధీకృత కుబోటా డీలర్ · సోమ–శని ఉ.9–సా.6",
+      "footer_text": "మీ కుబోటా డీలర్ · సోమ–శని ఉ.9–సా.6",
       "buttons": [
-        { "type": "QUICK_REPLY", "text": "ధర వివరాలు" },
-        { "type": "QUICK_REPLY", "text": "ఉచిత డెమో" },
-        { "type": "PHONE_NUMBER", "text": "కాల్ చేయండి", "phone_number": "+919281244676" }
+        {
+          "type": "QUICK_REPLY",
+          "text": "ధర వివరాలు"
+        },
+        {
+          "type": "QUICK_REPLY",
+          "text": "ఉచిత డెమో"
+        },
+        {
+          "type": "PHONE_NUMBER",
+          "text": "కాల్ చేయండి",
+          "phone_number": "+918500666928"
+        }
       ],
-      "variable_binding": { "1": "name", "2": "mandal" },
-      "sample_values": { "body": ["రాకేష్", "తాడేపల్లిగూడెం"] }
+      "variable_binding": {
+        "1": "name",
+        "2": "mandal"
+      },
+      "sample_values": {
+        "body": [
+          "రాకేష్",
+          "తాడేపల్లిగూడెం"
+        ]
+      }
     },
     {
       "name": "tractor_promo_local_en",
@@ -67,14 +121,32 @@
       "header_type": "image",
       "header_media_url": "https://whatsapp-crm-test.vercel.app/media/kubota/mu4501-1.jpg",
       "body_text": "Namaste {{1}} garu! 🚜\n\nGood news for farmers around {{2}} — the Kubota MU4501 (45 HP), India's number one bestseller. Puddling, dry land and haulage, all with one tractor and famous diesel savings.\n\nWe will bring a free demo to your own field, and we can arrange finance too.",
-      "footer_text": "Authorized Kubota Dealer · Mon–Sat 9 AM–6 PM",
+      "footer_text": "Your Kubota Dealer · Mon–Sat 9 AM–6 PM",
       "buttons": [
-        { "type": "QUICK_REPLY", "text": "Price details" },
-        { "type": "QUICK_REPLY", "text": "Free demo" },
-        { "type": "PHONE_NUMBER", "text": "Call us", "phone_number": "+919281244676" }
+        {
+          "type": "QUICK_REPLY",
+          "text": "Price details"
+        },
+        {
+          "type": "QUICK_REPLY",
+          "text": "Free demo"
+        },
+        {
+          "type": "PHONE_NUMBER",
+          "text": "Call us",
+          "phone_number": "+918500666928"
+        }
       ],
-      "variable_binding": { "1": "name", "2": "mandal" },
-      "sample_values": { "body": ["Rakesh", "Tadepalligudem"] }
+      "variable_binding": {
+        "1": "name",
+        "2": "mandal"
+      },
+      "sample_values": {
+        "body": [
+          "Rakesh",
+          "Tadepalligudem"
+        ]
+      }
     },
     {
       "name": "village_demo_invite_te",
@@ -85,11 +157,25 @@
       "body_text": "నమస్తే {{1}} గారు! 🙏\n\nమేము {{2}} లో ఈ వారం కుబోటా యంత్రాల ఉచిత డెమో నిర్వహిస్తున్నాము — ట్రాక్టర్లు, హార్వెస్టర్లు, రోటావేటర్లు.\n\nమీ పొలంలో పని చేస్తుండగా చూసి, ఆ తర్వాతే నిర్ణయించుకోండి. ఏ రోజు మీకు అనుకూలమో రిప్లై చేయండి.",
       "footer_text": "శ్రీ మాణిక్యంత స్వామి అగ్రి ఫార్మ్",
       "buttons": [
-        { "type": "QUICK_REPLY", "text": "డెమో బుక్ చేయండి" },
-        { "type": "QUICK_REPLY", "text": "ఇప్పుడు వద్దు" }
+        {
+          "type": "QUICK_REPLY",
+          "text": "డెమో బుక్ చేయండి"
+        },
+        {
+          "type": "QUICK_REPLY",
+          "text": "ఇప్పుడు వద్దు"
+        }
       ],
-      "variable_binding": { "1": "name", "2": "village" },
-      "sample_values": { "body": ["రాకేష్", "వాడిసలేరు"] }
+      "variable_binding": {
+        "1": "name",
+        "2": "village"
+      },
+      "sample_values": {
+        "body": [
+          "రాకేష్",
+          "వాడిసలేరు"
+        ]
+      }
     },
     {
       "name": "village_demo_invite_en",
@@ -100,11 +186,25 @@
       "body_text": "Namaste {{1}} garu! 🙏\n\nWe are running a free Kubota demo in {{2}} this week — tractors, harvesters and rotavators.\n\nSee the machine working in your own field, then decide. Reply with the day that suits you.",
       "footer_text": "Sri Manikanta Swamy Agri Farm",
       "buttons": [
-        { "type": "QUICK_REPLY", "text": "Book demo" },
-        { "type": "QUICK_REPLY", "text": "Not now" }
+        {
+          "type": "QUICK_REPLY",
+          "text": "Book demo"
+        },
+        {
+          "type": "QUICK_REPLY",
+          "text": "Not now"
+        }
       ],
-      "variable_binding": { "1": "name", "2": "village" },
-      "sample_values": { "body": ["Rakesh", "Vadisaleru"] }
+      "variable_binding": {
+        "1": "name",
+        "2": "village"
+      },
+      "sample_values": {
+        "body": [
+          "Rakesh",
+          "Vadisaleru"
+        ]
+      }
     },
     {
       "name": "service_reminder_local_te",
@@ -113,11 +213,25 @@
       "body_text": "నమస్తే {{1}} గారు 🙏\n\nమీ కుబోటా యంత్రానికి సర్వీస్ సమయం దగ్గరపడింది. {{2}} ప్రాంతానికి మా సర్వీస్ టీమ్ ఈ వారం వస్తోంది — అసలైన కుబోటా స్పేర్స్‌తో మీ దగ్గరే సర్వీస్ చేస్తాము.\n\nసర్వీస్ కావాలంటే రిప్లై చేయండి, సమయం ఏర్పాటు చేస్తాము.",
       "footer_text": "అసలైన కుబోటా స్పేర్స్ & సర్వీస్",
       "buttons": [
-        { "type": "QUICK_REPLY", "text": "సర్వీస్ కావాలి" },
-        { "type": "QUICK_REPLY", "text": "తర్వాత" }
+        {
+          "type": "QUICK_REPLY",
+          "text": "సర్వీస్ కావాలి"
+        },
+        {
+          "type": "QUICK_REPLY",
+          "text": "తర్వాత"
+        }
       ],
-      "variable_binding": { "1": "name", "2": "mandal" },
-      "sample_values": { "body": ["రాకేష్", "తాడేపల్లిగూడెం"] }
+      "variable_binding": {
+        "1": "name",
+        "2": "mandal"
+      },
+      "sample_values": {
+        "body": [
+          "రాకేష్",
+          "తాడేపల్లిగూడెం"
+        ]
+      }
     },
     {
       "name": "service_reminder_local_en",
@@ -126,11 +240,25 @@
       "body_text": "Namaste {{1}} garu 🙏\n\nYour Kubota machine is due for service. Our service team is coming to {{2}} this week — we service at your place with genuine Kubota spares.\n\nReply if you need service and we will arrange a time.",
       "footer_text": "Genuine Kubota spares & service",
       "buttons": [
-        { "type": "QUICK_REPLY", "text": "Need service" },
-        { "type": "QUICK_REPLY", "text": "Later" }
+        {
+          "type": "QUICK_REPLY",
+          "text": "Need service"
+        },
+        {
+          "type": "QUICK_REPLY",
+          "text": "Later"
+        }
       ],
-      "variable_binding": { "1": "name", "2": "mandal" },
-      "sample_values": { "body": ["Rakesh", "Tadepalligudem"] }
+      "variable_binding": {
+        "1": "name",
+        "2": "mandal"
+      },
+      "sample_values": {
+        "body": [
+          "Rakesh",
+          "Tadepalligudem"
+        ]
+      }
     }
   ]
 }

@@ -12,11 +12,10 @@
 // a public URL the WhatsApp Cloud API can fetch. On localhost these
 // are not internet-reachable, so real sends only work once deployed.
 //
-// Videos: the field-demo clips we were given are third-party YouTube
-// uploads (and some exceed WhatsApp's 16 MB cap), so we DON'T
-// redistribute the files — `video` is a link the assistant shares as
-// text. Replace with the dealer's own hosted clips to send them as
-// real video messages.
+// Videos: the dealer's per-product demo clips live in
+// `public/media/kubota/videos/` (each compressed under WhatsApp's
+// 16 MB cap) and are sent as real WhatsApp video messages, same
+// URL-resolution rules as the photos.
 // ============================================================
 
 export type MediaKind = 'image' | 'video';
@@ -52,6 +51,12 @@ export const MEDIA_MANIFEST: Record<string, ProductMedia> = {
         captionEn: 'Kubota B2441 in the field.',
         captionTe: 'కుబోటా B2441 పొలంలో.',
       },
+      {
+        kind: 'video',
+        path: '/media/kubota/videos/b2441.mp4',
+        captionEn: 'Kubota B2441 working with a rotavator — watch the demo.',
+        captionTe: 'కుబోటా B2441 రోటావేటర్‌తో పని — డెమో చూడండి.',
+      },
     ],
   },
   b2741: {
@@ -62,6 +67,12 @@ export const MEDIA_MANIFEST: Record<string, ProductMedia> = {
         path: '/media/kubota/b2741-1.jpg',
         captionEn: 'Kubota B2741 — 27 HP compact 4WD, more pulling power for orchards.',
         captionTe: 'కుబోటా B2741 — 27 HP కాంపాక్ట్ 4WD, ఎక్కువ లాగే శక్తి.',
+      },
+      {
+        kind: 'video',
+        path: '/media/kubota/videos/b2741.mp4',
+        captionEn: 'Kubota B2741 orchard tractor — watch the demo.',
+        captionTe: 'కుబోటా B2741 తోట ట్రాక్టర్ — డెమో చూడండి.',
       },
     ],
   },
@@ -80,6 +91,12 @@ export const MEDIA_MANIFEST: Record<string, ProductMedia> = {
         captionEn: 'Kubota L4508 working a wet paddy field.',
         captionTe: 'కుబోటా L4508 తడి వరి పొలంలో పని చేస్తోంది.',
       },
+      {
+        kind: 'video',
+        path: '/media/kubota/videos/l4508.mp4',
+        captionEn: 'Kubota L4508 power performance — watch the demo.',
+        captionTe: 'కుబోటా L4508 పవర్ పనితీరు — డెమో చూడండి.',
+      },
     ],
   },
   mu4201: {
@@ -97,6 +114,12 @@ export const MEDIA_MANIFEST: Record<string, ProductMedia> = {
         captionEn: 'Kubota MU4201 in the field.',
         captionTe: 'కుబోటా MU4201 పొలంలో.',
       },
+      {
+        kind: 'video',
+        path: '/media/kubota/videos/mu4201.mp4',
+        captionEn: 'Kubota MU4201 full review — watch the demo.',
+        captionTe: 'కుబోటా MU4201 పూర్తి రివ్యూ — డెమో చూడండి.',
+      },
     ],
   },
   mu4501: {
@@ -108,6 +131,12 @@ export const MEDIA_MANIFEST: Record<string, ProductMedia> = {
         captionEn: "Kubota MU4501 — 45 HP, India's bestselling tractor. Dammu, dry land & haulage.",
         captionTe: 'కుబోటా MU4501 — 45 HP, భారత్‌లో బెస్ట్‌సెల్లర్. దమ్ము, మెట్ట, రవాణా.',
       },
+      {
+        kind: 'video',
+        path: '/media/kubota/videos/mu4501.mp4',
+        captionEn: 'Kubota MU4501 with rotavator in the field — watch the demo.',
+        captionTe: 'కుబోటా MU4501 రోటావేటర్‌తో పొలంలో — డెమో చూడండి.',
+      },
     ],
   },
   mu5502: {
@@ -118,6 +147,12 @@ export const MEDIA_MANIFEST: Record<string, ProductMedia> = {
         path: '/media/kubota/mu5502-1.jpg',
         captionEn: 'Kubota MU5502 — 55 HP flagship for heavy implements.',
         captionTe: 'కుబోటా MU5502 — 55 HP ఫ్లాగ్‌షిప్, బరువైన పరికరాలకు.',
+      },
+      {
+        kind: 'video',
+        path: '/media/kubota/videos/mu5502.mp4',
+        captionEn: 'Kubota MU5502 4WD in action — watch the demo.',
+        captionTe: 'కుబోటా MU5502 4WD పనిలో — డెమో చూడండి.',
       },
     ],
   },
@@ -136,6 +171,12 @@ export const MEDIA_MANIFEST: Record<string, ProductMedia> = {
         captionEn: 'Kubota DC-68G working a muddy field.',
         captionTe: 'కుబోటా DC-68G బురద పొలంలో పని చేస్తోంది.',
       },
+      {
+        kind: 'video',
+        path: '/media/kubota/videos/dc68g.mp4',
+        captionEn: 'Kubota DC-68G King Pro harvesting in a muddy field — watch the demo.',
+        captionTe: 'కుబోటా DC-68G కింగ్ ప్రో బురద పొలంలో కోత — డెమో చూడండి.',
+      },
     ],
   },
   dc99: {
@@ -152,6 +193,12 @@ export const MEDIA_MANIFEST: Record<string, ProductMedia> = {
         path: '/media/kubota/dc99-2.jpg',
         captionEn: 'Kubota DC-99 Harvesking walkaround.',
         captionTe: 'కుబోటా DC-99 హార్వెస్‌కింగ్ వివరాలు.',
+      },
+      {
+        kind: 'video',
+        path: '/media/kubota/videos/dc99.mp4',
+        captionEn: 'Kubota DC-99 Harvesking full walkaround — watch the demo.',
+        captionTe: 'కుబోటా DC-99 హార్వెస్‌కింగ్ పూర్తి వాక్‌అరౌండ్ — డెమో చూడండి.',
       },
     ],
   },

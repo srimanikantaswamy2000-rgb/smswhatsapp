@@ -322,7 +322,13 @@ export default function BroadcastDetailPage() {
                   {Object.entries(broadcast.template_variables).map(([key, value]) => (
                     <li key={key} className="flex gap-1">
                       <span className="text-muted-foreground">{`{{${key}}}`}</span>
-                      <span className="truncate">{String(value)}</span>
+                      <span className="truncate">
+                        {/* Mappings are stored as {type, value} objects;
+                            String() on those printed "[object Object]". */}
+                        {typeof value === 'object' && value !== null && 'value' in value
+                          ? `${(value as { type?: string }).type ?? 'static'}: ${String((value as { value?: string }).value ?? '')}`
+                          : String(value)}
+                      </span>
                     </li>
                   ))}
                 </ul>

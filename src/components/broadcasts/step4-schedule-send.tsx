@@ -14,14 +14,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Send, Loader2, Users, Save } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Users, Save, AlertTriangle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-
-interface AudienceConfig {
-  type: string;
-  tagIds?: string[];
-  csvContacts?: { phone: string; name?: string }[];
-}
+import { useAuth } from '@/hooks/use-auth';
+// Shared shape — step 4 previously re-declared a local AudienceConfig
+// that predated geo targeting, so a district selection made in step 2
+// arrived here as an unknown type and rendered as 0 reach.
+import type { AudienceConfig } from '@/hooks/use-broadcast-sending';
 
 interface Step4Props {
   name: string;
@@ -47,9 +46,13 @@ export function Step4ScheduleSend({
   progress,
 }: Step4Props) {
   const t = useTranslations('Broadcasts.wizard');
+  const { accountId } = useAuth();
   const [showConfirm, setShowConfirm] = useState(false);
   const [estimatedReach, setEstimatedReach] = useState<number>(0);
   const [loadingReach, setLoadingReach] = useState(true);
+  // 24h rolling send quota (campaigns-module port): warn — never block —
+  // when this send would exceed what WhatsApp's daily tier allows.
+  const [quotaRemaining, setQuotaRemaining] = useState<number | null>(null);
 
   useEffect(() => {
     async function calculateReach() {
@@ -57,7 +60,27 @@ export function Step4ScheduleSend({
       try {
         const supabase = createClient();
 
-        if (audience.type === 'all') {
+        if (audience.type === 'geo') {
+          // Same RPC as step 2's count and the send path itself, so the
+          // number shown here is the number that gets messaged.
+          if (!accountId) {
+            setEstimatedReach(0);
+            return;
+          }
+          const { data, error } = await supabase.rpc('resolve_broadcast_audience', {
+            p_account_id: accountId,
+            p_districts: audience.districts ?? [],
+            p_mandals: audience.mandals ?? [],
+            p_exclude_tag_ids: audience.excludeTagIds ?? [],
+            p_limit: 1,
+          });
+          if (error) {
+            setEstimatedReach(0);
+            return;
+          }
+          const row = (data ?? [])[0] as { total_count?: number } | undefined;
+          setEstimatedReach(Number(row?.total_count ?? 0));
+        } else if (audience.type === 'all') {
           const { count } = await supabase
             .from('contacts')
             .select('*', { count: 'exact', head: true });
@@ -72,6 +95,8 @@ export function Step4ScheduleSend({
           setEstimatedReach(uniqueIds.size);
         } else if (audience.type === 'csv' && audience.csvContacts) {
           setEstimatedReach(audience.csvContacts.length);
+        } else if (audience.type === 'contacts' && audience.contactIds) {
+          setEstimatedReach(audience.contactIds.length);
         } else {
           setEstimatedReach(0);
         }
@@ -81,16 +106,42 @@ export function Step4ScheduleSend({
     }
 
     calculateReach();
-  }, [audience]);
+  }, [audience, accountId]);
+
+  useEffect(() => {
+    async function fetchQuota() {
+      if (!accountId) return;
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc('broadcast_quota_remaining', {
+        p_account_id: accountId,
+      });
+      if (!error && typeof data === 'number') setQuotaRemaining(data);
+    }
+    fetchQuota();
+  }, [accountId]);
 
   const audienceLabel =
-    audience.type === 'all'
-      ? t('scheduleSend.audienceAll')
-      : audience.type === 'tags'
-        ? t('scheduleSend.audienceTags')
-        : audience.type === 'csv'
-          ? t('scheduleSend.audienceCsv')
-          : t('scheduleSend.audienceField');
+    audience.type === 'geo'
+      ? audience.districts && audience.districts.length > 0
+        ? [
+            ...audience.districts,
+            ...(audience.mandals && audience.mandals.length > 0
+              ? audience.mandals
+              : []),
+          ].join(', ')
+        : t('scheduleSend.audienceGeoAll')
+      : audience.type === 'all'
+        ? t('scheduleSend.audienceAll')
+        : audience.type === 'tags'
+          ? t('scheduleSend.audienceTags')
+          : audience.type === 'csv'
+            ? t('scheduleSend.audienceCsv')
+            : audience.type === 'contacts'
+              ? t('scheduleSend.audienceContacts')
+              : t('scheduleSend.audienceField');
+
+  const exceedsQuota =
+    quotaRemaining !== null && !loadingReach && estimatedReach > quotaRemaining;
 
   return (
     <div className="space-y-6">
@@ -143,6 +194,19 @@ export function Step4ScheduleSend({
           </div>
         </div>
       </div>
+
+      {/* Daily quota warning — informational, never blocks the send */}
+      {exceedsQuota && (
+        <div className="flex items-start gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-500" />
+          <p className="text-sm text-foreground">
+            {t('scheduleSend.quotaWarning', {
+              reach: estimatedReach.toLocaleString(),
+              remaining: (quotaRemaining ?? 0).toLocaleString(),
+            })}
+          </p>
+        </div>
+      )}
 
       {/* Processing overlay */}
       {isProcessing && (

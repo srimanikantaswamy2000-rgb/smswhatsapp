@@ -8,12 +8,21 @@ import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
 import { engineSendText, engineSendMedia } from '@/lib/flows/meta-send'
+import { getMediaUrl, downloadMedia } from '@/lib/whatsapp/meta-api'
+import { decrypt } from '@/lib/whatsapp/encryption'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import {
   parseMediaDirectives,
   detectReplyLanguage,
   resolveMediaForSend,
 } from './media'
+import { parseVisitDirective } from './visit'
+import {
+  extractPartTokens,
+  searchParts,
+  buildPartsBlock,
+  parseOrderDirectives,
+} from './parts'
 
 interface DispatchArgs {
   /** Tenancy key — drives config, contact, and whatsapp_config lookups. */
@@ -84,7 +93,42 @@ export async function dispatchInboundToAiReply(
     // below (this read can race a concurrent inbound).
     if (conv.ai_reply_count >= config.autoReplyMaxPerConversation) return
 
-    const messages = await buildConversationContext(db, conversationId)
+    // Resolve the latest customer photo (if any) so the vision model
+    // can look at it — customers photograph spare parts and machines.
+    // Lazy: the token is only fetched when a photo actually needs
+    // resolving. Any failure degrades to the text placeholder.
+    const resolveImage = async (mediaUrl: string): Promise<string | null> => {
+      try {
+        const mediaId = mediaUrl.match(/\/api\/whatsapp\/media\/(.+)$/)?.[1]
+        if (!mediaId) return null
+        const { data: waCfg } = await db
+          .from('whatsapp_config')
+          .select('access_token')
+          .eq('account_id', accountId)
+          .limit(1)
+          .maybeSingle()
+        if (!waCfg?.access_token) return null
+        const accessToken = decrypt(waCfg.access_token)
+        const { url } = await getMediaUrl({ mediaId, accessToken })
+        const { buffer, contentType } = await downloadMedia({
+          downloadUrl: url,
+          accessToken,
+        })
+        if (buffer.length > 4 * 1024 * 1024) return null // bound the payload
+        if (!contentType.startsWith('image/')) return null
+        return `data:${contentType};base64,${buffer.toString('base64')}`
+      } catch (err) {
+        console.error('[ai auto-reply] image resolve failed:', err)
+        return null
+      }
+    }
+
+    const messages = await buildConversationContext(
+      db,
+      conversationId,
+      undefined,
+      resolveImage,
+    )
     if (messages.length === 0) return
 
     // Account-wide throttle on the shared BYO key. The per-conversation
@@ -111,11 +155,34 @@ export async function dispatchInboundToAiReply(
       latestUserMessage(messages),
     )
 
-    const systemPrompt = buildSystemPrompt({
+    let systemPrompt = buildSystemPrompt({
       userPrompt: config.systemPrompt,
       mode: 'auto_reply',
       knowledge,
     })
+
+    // Spare-parts grounding: if the recent customer text mentions
+    // anything catalogue-shaped, inject the matching genuine-part rows
+    // so the model quotes real part numbers and can place an
+    // `[[ORDER:...]]`. Best-effort — a search failure must not block
+    // the reply.
+    try {
+      const recentCustomerText = messages
+        .filter((m) => m.role === 'user')
+        .slice(-3)
+        .map((m) => m.content)
+        .join('\n')
+      const partMatches = await searchParts(
+        db,
+        configOwnerUserId,
+        extractPartTokens(recentCustomerText),
+      )
+      if (partMatches.length > 0) {
+        systemPrompt += `\n\n${buildPartsBlock(partMatches)}`
+      }
+    } catch (err) {
+      console.error('[ai auto-reply] parts search failed:', err)
+    }
 
     const { text, handoff, usage } = await generateReply({
       config,
@@ -187,7 +254,90 @@ export async function dispatchInboundToAiReply(
     // Split any `[[MEDIA:id]]` directives out of the customer-facing
     // text. The stripped text is what we send; the ids drive follow-up
     // media messages below.
-    const { cleanedText, mediaIds } = parseMediaDirectives(text)
+    const { cleanedText: textAfterMedia, mediaIds } = parseMediaDirectives(text)
+
+    // `[[VISIT:...]]` — the customer agreed on a showroom-visit/demo
+    // slot; book it as an appointment. Best-effort: a booking failure
+    // must never block the reply itself.
+    const { cleanedText: textAfterVisit, requestedTimeIso } =
+      parseVisitDirective(textAfterMedia)
+
+    // `[[ORDER:...]]` — the customer confirmed a spare-part order.
+    // Record it and ping the spare-parts team. Best-effort, like the
+    // visit booking.
+    const { cleanedText, orders } = parseOrderDirectives(textAfterVisit)
+    if (orders.length > 0) {
+      try {
+        const { data: orderContact } = await db
+          .from('contacts')
+          .select('phone, name')
+          .eq('id', contactId)
+          .maybeSingle()
+        for (const order of orders) {
+          const { data: inserted, error: orderErr } = await db
+            .from('part_orders')
+            .insert({
+              user_id: configOwnerUserId,
+              contact_id: contactId,
+              conversation_id: conversationId,
+              part_number: order.partNumber,
+              part_name: order.partName,
+              qty: order.qty,
+              customer_phone: orderContact?.phone ?? null,
+              customer_name: orderContact?.name ?? null,
+              team_notified_at: new Date().toISOString(),
+            })
+            .select('order_no')
+            .single()
+          if (orderErr || !inserted) {
+            console.error('[ai auto-reply] part order insert failed:', orderErr)
+            continue
+          }
+          await notifyPartsTeam(db, {
+            accountId,
+            configOwnerUserId,
+            orderNo: inserted.order_no as number,
+            order,
+            customerName: orderContact?.name ?? null,
+            customerPhone: orderContact?.phone ?? null,
+            conversationId,
+            contactId,
+          })
+        }
+      } catch (err) {
+        console.error('[ai auto-reply] part order handling failed:', err)
+      }
+    }
+    if (requestedTimeIso) {
+      try {
+        const { data: visitContact } = await db
+          .from('contacts')
+          .select('phone, name')
+          .eq('id', contactId)
+          .maybeSingle()
+        if (visitContact?.phone) {
+          await db.from('appointments').insert({
+            user_id: configOwnerUserId,
+            contact_id: contactId,
+            phone: visitContact.phone,
+            customer_name: visitContact.name ?? null,
+            requested_time: requestedTimeIso,
+            status: 'booked',
+          })
+          await db.from('notifications').insert({
+            account_id: accountId,
+            user_id: configOwnerUserId,
+            type: 'conversation_assigned',
+            conversation_id: conversationId,
+            contact_id: contactId,
+            title: 'AI booked a showroom visit',
+            body: `${visitContact.name ?? visitContact.phone} — ${requestedTimeIso.replace('T', ' ').slice(0, 16)} IST`,
+          })
+        }
+      } catch (err) {
+        console.error('[ai auto-reply] visit booking failed:', err)
+      }
+    }
 
     if (cleanedText) {
       await engineSendText({
@@ -225,21 +375,27 @@ export async function dispatchInboundToAiReply(
             .filter((u): u is string => !!u),
         )
 
+        // Applies to photos AND videos: each media file goes out at most
+        // once per conversation. A different product's media has
+        // different URLs, so asking about a new machine still sends its
+        // photos/video.
         const toSend = resolveMediaForSend(mediaIds, lang, baseUrl).filter(
-          (item) => item.kind !== 'image' || !alreadySent.has(item.link),
+          (item) => !alreadySent.has(item.link),
         )
 
         for (const item of toSend) {
-          // Videos are external links (e.g. YouTube) — sent as text so
-          // WhatsApp renders a preview; only images go as media messages.
+          // Hosted .mp4 clips (public/media/kubota/videos/) go as real
+          // WhatsApp video messages; any external link (e.g. a YouTube
+          // URL) falls back to text so WhatsApp renders a preview.
+          const isHostedFile = item.link.startsWith(baseUrl)
           try {
-            if (item.kind === 'image') {
+            if (item.kind === 'image' || (item.kind === 'video' && isHostedFile)) {
               await engineSendMedia({
                 accountId,
                 userId: configOwnerUserId,
                 conversationId,
                 contactId,
-                kind: 'image',
+                kind: item.kind,
                 link: item.link,
                 caption: item.caption,
               })
@@ -265,5 +421,84 @@ export async function dispatchInboundToAiReply(
     }
   } catch (err) {
     console.error('[ai auto-reply] dispatch failed:', err)
+  }
+}
+
+/** Where new part orders are announced. Defaults to the MD's number. */
+const PARTS_TEAM_PHONE = process.env.PARTS_TEAM_PHONE ?? '918500666928'
+
+interface NotifyPartsTeamArgs {
+  accountId: string
+  configOwnerUserId: string
+  orderNo: number
+  order: { partNumber: string; partName: string; qty: number }
+  customerName: string | null
+  customerPhone: string | null
+  conversationId: string
+  contactId: string
+}
+
+/**
+ * Tell the spare-parts team about a new order: always a dashboard
+ * notification; additionally a WhatsApp text when the team number has
+ * an open conversation (Meta only allows free text inside a 24h
+ * window). The team replies "OK <no>" / "NO <no>" — handled by the
+ * webhook — to resolve it.
+ */
+async function notifyPartsTeam(
+  db: ReturnType<typeof supabaseAdmin>,
+  args: NotifyPartsTeamArgs,
+): Promise<void> {
+  const { accountId, configOwnerUserId, orderNo, order } = args
+  const who = args.customerName
+    ? `${args.customerName} (${args.customerPhone ?? '—'})`
+    : (args.customerPhone ?? 'unknown customer')
+  const summary =
+    `Parts order #${orderNo}\n` +
+    `Customer: ${who}\n` +
+    `Part: ${order.partNumber} ${order.partName} × ${order.qty}\n\n` +
+    `Reply "OK ${orderNo}" if available, "NO ${orderNo}" if not.`
+
+  try {
+    await db.from('notifications').insert({
+      account_id: accountId,
+      user_id: configOwnerUserId,
+      type: 'conversation_assigned',
+      conversation_id: args.conversationId,
+      contact_id: args.contactId,
+      title: `Parts order #${orderNo} — ${order.partNumber} × ${order.qty}`,
+      body: summary,
+    })
+  } catch (err) {
+    console.error('[ai auto-reply] parts notification insert failed:', err)
+  }
+
+  try {
+    const teamDigits = PARTS_TEAM_PHONE.replace(/\D/g, '')
+    const { data: teamContact } = await db
+      .from('contacts')
+      .select('id')
+      .eq('account_id', accountId)
+      .or(`phone.eq.${teamDigits},phone.eq.+${teamDigits}`)
+      .limit(1)
+      .maybeSingle()
+    if (!teamContact) return
+    const { data: teamConv } = await db
+      .from('conversations')
+      .select('id')
+      .eq('contact_id', teamContact.id)
+      .order('last_message_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (!teamConv) return
+    await engineSendText({
+      accountId,
+      userId: configOwnerUserId,
+      conversationId: teamConv.id,
+      contactId: teamContact.id,
+      text: `🔧 ${summary}`,
+    })
+  } catch (err) {
+    console.error('[ai auto-reply] parts team WhatsApp ping failed:', err)
   }
 }

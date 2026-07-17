@@ -42,7 +42,19 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
         model,
         messages: [
           { role: 'system', content: systemPrompt },
-          ...mergeConsecutive(messages),
+          // Turns carrying a customer photo become multimodal content
+          // parts (data URL) so vision models can look at the image.
+          ...mergeConsecutive(messages).map((m) =>
+            m.imageDataUrl
+              ? {
+                  role: m.role,
+                  content: [
+                    { type: 'text', text: m.content },
+                    { type: 'image_url', image_url: { url: m.imageDataUrl } },
+                  ],
+                }
+              : { role: m.role, content: m.content },
+          ),
         ],
         max_completion_tokens: MAX_OUTPUT_TOKENS,
       }),

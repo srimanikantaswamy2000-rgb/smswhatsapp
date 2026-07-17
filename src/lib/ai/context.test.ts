@@ -3,12 +3,13 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { buildConversationContext } from './context'
 
 /** Minimal fake matching the query chain in buildConversationContext:
- *  from().select().eq().eq().order().limit() → { data, error }. */
+ *  from().select().eq().in().order().limit() → { data, error }. */
 function fakeDb(rows: unknown[]): SupabaseClient {
   const chain = {
     from: () => chain,
     select: () => chain,
     eq: () => chain,
+    in: () => chain,
     order: () => chain,
     limit: () => Promise.resolve({ data: rows, error: null }),
   }
@@ -49,5 +50,45 @@ describe('buildConversationContext', () => {
       'conv-1',
     )
     expect(out).toEqual([{ role: 'user', content: 'real' }])
+  })
+
+  it('renders customer photos as placeholder turns without a resolver', async () => {
+    const out = await buildConversationContext(
+      fakeDb([
+        {
+          sender_type: 'customer',
+          content_type: 'image',
+          content_text: null,
+          media_url: '/api/whatsapp/media/m1',
+        },
+      ]),
+      'conv-1',
+    )
+    expect(out).toEqual([{ role: 'user', content: '[the customer sent a photo]' }])
+  })
+
+  it('resolves only the latest customer photo to a data URL', async () => {
+    // Newest-first rows: photo m2 is the latest.
+    const rows = [
+      { sender_type: 'customer', content_type: 'image', content_text: 'this part', media_url: '/api/whatsapp/media/m2' },
+      { sender_type: 'customer', content_type: 'image', content_text: null, media_url: '/api/whatsapp/media/m1' },
+    ]
+    const resolved: string[] = []
+    const out = await buildConversationContext(
+      fakeDb(rows),
+      'conv-1',
+      50,
+      async (url) => {
+        resolved.push(url)
+        return 'data:image/jpeg;base64,AAA'
+      },
+    )
+    expect(resolved).toEqual(['/api/whatsapp/media/m2'])
+    expect(out[0].imageDataUrl).toBeUndefined()
+    expect(out[1]).toEqual({
+      role: 'user',
+      content: '[photo attached] this part',
+      imageDataUrl: 'data:image/jpeg;base64,AAA',
+    })
   })
 })

@@ -8,6 +8,8 @@ import { verifyMetaWebhookSignature } from '@/lib/whatsapp/webhook-signature'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
+import { parseTeamVerdict } from '@/lib/ai/parts'
+import { engineSendText } from '@/lib/flows/meta-send'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import {
   handleTemplateWebhookChange,
@@ -80,6 +82,12 @@ interface WhatsAppWebhookEntry {
         status: string
         timestamp: string
         recipient_id: string
+        errors?: Array<{
+          code: number
+          title?: string
+          message?: string
+          error_data?: { details?: string }
+        }>
       }>
     }
     field: string
@@ -354,6 +362,12 @@ async function handleStatusUpdate(status: {
   status: string
   timestamp: string
   recipient_id: string
+  errors?: Array<{
+    code: number
+    title?: string
+    message?: string
+    error_data?: { details?: string }
+  }>
 }) {
   // 1) Mirror onto messages (legacy behavior) — Meta's status values
   //    already match the CHECK constraint on messages.status. No
@@ -397,6 +411,20 @@ async function handleStatusUpdate(status: {
     if (status.status === 'sent' && !('sent_at' in update)) update.sent_at = tsIso
     if (status.status === 'delivered') update.delivered_at = tsIso
     if (status.status === 'read') update.read_at = tsIso
+    // Meta attaches WHY a send failed (code + human text) to the failed
+    // status callback. Without persisting it the dashboard shows a bare
+    // "Failed" and the dealer can't tell an invalid number from a
+    // marketing-limit rejection.
+    if (status.status === 'failed' && status.errors?.length) {
+      const e = status.errors[0]
+      update.error_message = [
+        `#${e.code}`,
+        e.title ?? e.message ?? '',
+        e.error_data?.details ?? '',
+      ]
+        .filter(Boolean)
+        .join(' — ')
+    }
 
     const { error: recUpdateErr } = await supabaseAdmin()
       .from('broadcast_recipients')
@@ -726,7 +754,25 @@ async function processMessage(
   // no active flows take the runner's early-exit "no_match" path
   // basically for free (one indexed SELECT for the active run).
   // ============================================================
-  const flowResult = await dispatchInboundToFlows({
+  // Spare-parts team verdict: a text like "OK 12" / "NO 12" from the
+  // parts-team number resolves part order #12 and relays availability
+  // to the customer. When handled, the message is treated as consumed —
+  // no flows, keyword automations, or AI reply pile on top of it.
+  const partsVerdictConsumed =
+    message.type === 'text'
+      ? await handlePartsTeamVerdict({
+          accountId,
+          configOwnerUserId,
+          senderPhone,
+          text: contentText ?? message.text?.body ?? '',
+          teamConversationId: conversation.id,
+          teamContactId: contactRecord.id,
+        })
+      : false
+
+  const flowResult = partsVerdictConsumed
+    ? { consumed: true }
+    : await dispatchInboundToFlows({
     accountId,
     userId: configOwnerUserId,
     contactId: contactRecord.id,
@@ -796,12 +842,15 @@ async function processMessage(
     }).catch((err) => console.error('[automations] dispatch failed:', err))
   }
 
-  // AI auto-reply. Runs only for plain-text inbound the deterministic
-  // flow runner did NOT consume (flows win over the LLM), and only when
-  // the account has enabled it. Awaited inside `after()` (same reason as
+  // AI auto-reply. Runs for plain-text inbound the deterministic flow
+  // runner did NOT consume (flows win over the LLM) — and for photos,
+  // which the vision-capable agent can look at (customers photograph
+  // spare parts and machines). Awaited inside `after()` (same reason as
   // the webhook dispatch below); `dispatchInboundToAiReply` owns its
   // eligibility gates + try/catch and never throws.
-  if (!flowConsumed && !interactiveReplyId && inboundText.trim()) {
+  const aiEligible =
+    inboundText.trim().length > 0 || (message.type === 'image' && mediaUrl)
+  if (!flowConsumed && !interactiveReplyId && aiEligible) {
     await dispatchInboundToAiReply({
       accountId,
       conversationId: conversation.id,
@@ -1110,4 +1159,113 @@ async function findOrCreateConversation(
   }
 
   return { conversation: newConv, created: true }
+}
+
+// ============================================================
+// Spare-parts team order verdicts.
+// ============================================================
+
+/** The number the spare-parts team replies from. Defaults to the MD's. */
+const PARTS_TEAM_PHONE = process.env.PARTS_TEAM_PHONE ?? '918500666928'
+
+interface PartsVerdictArgs {
+  accountId: string
+  configOwnerUserId: string
+  senderPhone: string
+  text: string
+  /** The team's own conversation — where the ack goes back. */
+  teamConversationId: string
+  teamContactId: string
+}
+
+/**
+ * If this inbound is the parts team replying "OK <n>" / "NO <n>",
+ * resolve part order <n> and message the customer with the outcome.
+ * Returns true when the message was a verdict (even an invalid one —
+ * the team gets an explanatory ack), false for everything else so
+ * normal processing continues.
+ */
+async function handlePartsTeamVerdict(args: PartsVerdictArgs): Promise<boolean> {
+  const { accountId, configOwnerUserId, senderPhone, text } = args
+  try {
+    const teamDigits = PARTS_TEAM_PHONE.replace(/\D/g, '')
+    if (senderPhone.replace(/\D/g, '') !== teamDigits) return false
+
+    const verdict = parseTeamVerdict(text)
+    if (!verdict) return false
+
+    const ack = (ackText: string) =>
+      engineSendText({
+        accountId,
+        userId: configOwnerUserId,
+        conversationId: args.teamConversationId,
+        contactId: args.teamContactId,
+        text: ackText,
+      }).catch((err: unknown) =>
+        console.error('[parts verdict] team ack failed:', err)
+      )
+
+    const db = supabaseAdmin()
+    const { data: order } = await db
+      .from('part_orders')
+      .select('id, order_no, part_number, part_name, qty, status, contact_id, conversation_id, customer_name')
+      .eq('user_id', configOwnerUserId)
+      .eq('order_no', verdict.orderNo)
+      .maybeSingle()
+
+    if (!order) {
+      await ack(`Order #${verdict.orderNo} not found.`)
+      return true
+    }
+    if (order.status !== 'pending') {
+      await ack(`Order #${order.order_no} is already ${order.status}.`)
+      return true
+    }
+
+    const status = verdict.accepted ? 'accepted' : 'declined'
+    const { error: updErr } = await db
+      .from('part_orders')
+      .update({ status, resolved_at: new Date().toISOString() })
+      .eq('id', order.id)
+    if (updErr) {
+      console.error('[parts verdict] order update failed:', updErr)
+      await ack(`Could not update order #${order.order_no} — try again.`)
+      return true
+    }
+
+    // Tell the customer. Bilingual one-liner — we don't know their
+    // language here, and the 24h window is usually still open (they
+    // ordered recently). A closed window just fails the send; the
+    // order status is already saved for a manual follow-up.
+    let customerNotified = false
+    if (order.conversation_id && order.contact_id) {
+      const part = `${order.part_name ?? order.part_number} (${order.part_number})`
+      const customerText = verdict.accepted
+        ? `✅ మీ స్పేర్ పార్ట్ అందుబాటులో ఉంది! / Good news — your part is available!\n${part} × ${order.qty}\nOrder #${order.order_no}. మా టీమ్ త్వరలో ధర & పికప్ వివరాలతో సంప్రదిస్తుంది. / Our team will contact you shortly with price & pickup details. 📞 8500666928`
+        : `మీ ఆర్డర్ #${order.order_no} (${part}) ప్రస్తుతం స్టాక్‌లో లేదు. / Sorry, part ${part} for order #${order.order_no} is currently out of stock.\nమేము తెప్పించి మీకు తెలియజేస్తాము. / We will arrange it and let you know. 📞 8500666928`
+      try {
+        await engineSendText({
+          accountId,
+          userId: configOwnerUserId,
+          conversationId: order.conversation_id,
+          contactId: order.contact_id,
+          text: customerText,
+        })
+        customerNotified = true
+      } catch (err) {
+        console.error('[parts verdict] customer notify failed:', err)
+      }
+    }
+
+    await ack(
+      `Order #${order.order_no} marked ${status}.` +
+        (customerNotified
+          ? ` Customer${order.customer_name ? ` ${order.customer_name}` : ''} notified.`
+          : ' Could not message the customer (window closed?) — please follow up.')
+    )
+    return true
+  } catch (err) {
+    console.error('[parts verdict] handler failed:', err)
+    return false
+  }
 }

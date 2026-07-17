@@ -55,7 +55,29 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
         model,
         system: systemPrompt,
         max_tokens: MAX_OUTPUT_TOKENS,
-        messages: normalizeForAnthropic(messages),
+        // Turns carrying a customer photo become multimodal content
+        // blocks (base64) so vision models can look at the image.
+        messages: normalizeForAnthropic(messages).map((m) => {
+          const dataUrl = m.imageDataUrl?.match(
+            /^data:(image\/[a-z+]+);base64,(.+)$/,
+          )
+          return dataUrl
+            ? {
+                role: m.role,
+                content: [
+                  {
+                    type: 'image',
+                    source: {
+                      type: 'base64',
+                      media_type: dataUrl[1],
+                      data: dataUrl[2],
+                    },
+                  },
+                  { type: 'text', text: m.content },
+                ],
+              }
+            : { role: m.role, content: m.content }
+        }),
       }),
       signal: AbortSignal.timeout(timeoutMs),
     })
