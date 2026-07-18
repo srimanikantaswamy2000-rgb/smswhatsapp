@@ -811,8 +811,15 @@ async function processMessage(
   // Fire any automations that react to this webhook event. All dispatches
   // run here (not earlier) so the contact, conversation, and inbound
   // message all exist before any step — including send_message — runs.
-  // Fire-and-forget: a slow or failing automation must not block the
-  // webhook's 200 OK response to Meta.
+  // Awaited (NOT fire-and-forget): we're inside the route's `after()`
+  // block, which only keeps the serverless function alive for promises
+  // it can see. A detached dispatch gets frozen the moment the last
+  // awaited call resolves — which silently dropped replies to utility
+  // taps like menu_talk, where no AI dispatch ran afterward to keep the
+  // function alive. The 200 to Meta already went out before `after()`
+  // ran, so awaiting here cannot slow the ack. Long waits inside an
+  // automation park in automation_pending_executions for the cron, so
+  // each dispatch is bounded.
   const inboundText = contentText ?? message.text?.body ?? ''
   const automationTriggers: (
     | 'new_contact_created'
@@ -846,7 +853,10 @@ async function processMessage(
   if (isFirstInboundMessage || isBroadcastReply)
     automationTriggers.unshift('first_inbound_message')
   for (const triggerType of automationTriggers) {
-    runAutomationsForTrigger({
+    // Sequential so a multi-trigger inbound (welcome + keyword…) sends
+    // its messages in a stable order. `runAutomationsForTrigger` owns
+    // its try/catch and never throws.
+    await runAutomationsForTrigger({
       accountId,
       triggerType,
       contactId: contactRecord.id,
@@ -857,7 +867,7 @@ async function processMessage(
         // trigger's exact-id match.
         interactive_reply_id: interactiveReplyId ?? undefined,
       },
-    }).catch((err) => console.error('[automations] dispatch failed:', err))
+    })
   }
 
   // AI auto-reply. Runs for plain-text inbound the deterministic flow
@@ -884,6 +894,23 @@ async function processMessage(
     interactiveReplyId !== null && PRODUCT_MENU_TAPS.has(interactiveReplyId)
   const aiEligible =
     inboundText.trim().length > 0 || (message.type === 'image' && mediaUrl)
+
+  // Any menu tap is an explicit re-engagement: lift a sticky AI mute
+  // (a prior handoff set ai_autoreply_disabled) and reset the
+  // per-conversation reply budget, so going back to the menu and
+  // picking another option always brings the AI back. Runs BEFORE the
+  // AI dispatch below so the fresh gates apply to this very tap. The
+  // human-assignment gate is deliberately NOT cleared — when a teammate
+  // owns the thread, the bot stays quiet until they unassign.
+  if (interactiveReplyId) {
+    const { error: reviveErr } = await supabaseAdmin()
+      .from('conversations')
+      .update({ ai_autoreply_disabled: false, ai_reply_count: 0 })
+      .eq('id', conversation.id)
+    if (reviveErr) {
+      console.error('[webhook] AI revive on menu tap failed:', reviveErr)
+    }
+  }
   if (!flowConsumed && (!interactiveReplyId || aiHandlesTap) && aiEligible) {
     await dispatchInboundToAiReply({
       accountId,
@@ -891,6 +918,9 @@ async function processMessage(
       contactId: contactRecord.id,
       configOwnerUserId,
       inboundText,
+      // The welcome (greeting+menu) automation answers this inbound —
+      // the AI stands down so the customer gets exactly one message.
+      isWelcomeInbound: isFirstInboundMessage || isBroadcastReply,
     })
   }
 

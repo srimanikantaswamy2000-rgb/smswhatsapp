@@ -36,6 +36,12 @@ interface DispatchArgs {
   /** The inbound message's text, used to decide whether a keyword
    *  automation will answer it (in which case the AI stands down). */
   inboundText?: string
+  /** True when this inbound fires the welcome (`first_inbound_message`)
+   *  automation — the contact's first-ever message, or their first reply
+   *  to a broadcast. If an active welcome automation exists, the AI
+   *  stands down so the customer gets ONE greeting+menu message, not a
+   *  second AI-written greeting on top. */
+  isWelcomeInbound?: boolean
 }
 
 /**
@@ -128,7 +134,11 @@ export async function dispatchInboundToAiReply(
         .select('id, trigger_type, trigger_config')
         .eq('account_id', accountId)
         .eq('is_active', true)
-        .in('trigger_type', ['new_message_received', 'keyword_match']),
+        .in('trigger_type', [
+          'new_message_received',
+          'keyword_match',
+          'first_inbound_message',
+        ]),
       buildConversationContext(db, conversationId, undefined, resolveImage),
     ])
 
@@ -143,12 +153,15 @@ export async function dispatchInboundToAiReply(
     // everything), or a `keyword_match` whose keywords actually match
     // the inbound text. A keyword automation that doesn't match must
     // not mute the agent: the account keeps e.g. a "menu" keyword AND
-    // the AI for everything else. (Relationship triggers like
-    // `first_inbound_message` don't count — they're not per-message
-    // auto-responders.)
+    // the AI for everything else. `first_inbound_message` counts only
+    // when the caller flagged this inbound as the welcome one — the
+    // greeting+menu automation IS the reply, and an extra AI greeting
+    // on top reads as spam.
     const willAutoRespond = (autoRes.data ?? []).some(
       (a) =>
         a.trigger_type === 'new_message_received' ||
+        (a.trigger_type === 'first_inbound_message' &&
+          args.isWelcomeInbound === true) ||
         (a.trigger_type === 'keyword_match' &&
           triggerMatches(a as Parameters<typeof triggerMatches>[0], {
             message_text: args.inboundText ?? '',

@@ -135,12 +135,19 @@ async function main() {
     console.log(`automation ready: ${name}`);
   };
 
-  // 3) Welcome: greeting message immediately followed by the
-  //    interactive menu, on the very first inbound from a contact
-  //    (and on a first reply to a broadcast — see the webhook).
+  // 3) Welcome: ONE list message carrying the greeting as its body,
+  //    on the very first inbound from a contact (and on a first reply
+  //    to a broadcast — see the webhook). Single message by design —
+  //    a separate greeting text + menu read as spam on the customer's
+  //    phone.
   await upsertAutomation('Welcome — greeting + menu', 'first_inbound_message', {}, [
-    { step_type: 'send_message', step_config: { text: GREETING_TEXT } },
-    { step_type: 'send_list', step_config: { ...listConfig, body: WELCOME_MENU_BODY } },
+    {
+      step_type: 'send_list',
+      step_config: {
+        ...listConfig,
+        body: `${GREETING_TEXT}\n\n${WELCOME_MENU_BODY}`,
+      },
+    },
   ]);
 
   // 4) Offers — menu row tap + keyword.

@@ -158,6 +158,24 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
     expect(h.engineSendText).toHaveBeenCalled()
   })
 
+  it('stands down on the welcome inbound when a first_inbound_message automation is active', async () => {
+    h.state.autoResponders = [
+      { id: 'auto-1', trigger_type: 'first_inbound_message' },
+    ]
+    await dispatchInboundToAiReply({ ...ARGS, isWelcomeInbound: true })
+    expect(h.generateReply).not.toHaveBeenCalled()
+    expect(h.engineSendText).not.toHaveBeenCalled()
+  })
+
+  it('replies normally on later inbounds even with a welcome automation active', async () => {
+    h.state.autoResponders = [
+      { id: 'auto-1', trigger_type: 'first_inbound_message' },
+    ]
+    await dispatchInboundToAiReply({ ...ARGS, inboundText: 'tractor price?' })
+    expect(h.generateReply).toHaveBeenCalled()
+    expect(h.engineSendText).toHaveBeenCalled()
+  })
+
   it('does not send when the atomic slot claim loses the race', async () => {
     h.state.claim = false
     await dispatchInboundToAiReply(ARGS)
