@@ -246,7 +246,7 @@ async function processWebhook(body: { entry?: WhatsAppWebhookEntry[] }) {
       // Handle status updates
       if (value.statuses) {
         for (const status of value.statuses) {
-          await handleStatusUpdate(status)
+          await handleStatusUpdate(status, value.metadata.phone_number_id)
         }
       }
 
@@ -357,18 +357,23 @@ function isValidStatusTransition(current: string, incoming: string): boolean {
   return ii > ci
 }
 
-async function handleStatusUpdate(status: {
-  id: string
-  status: string
-  timestamp: string
-  recipient_id: string
-  errors?: Array<{
-    code: number
-    title?: string
-    message?: string
-    error_data?: { details?: string }
-  }>
-}) {
+async function handleStatusUpdate(
+  status: {
+    id: string
+    status: string
+    timestamp: string
+    recipient_id: string
+    errors?: Array<{
+      code: number
+      title?: string
+      message?: string
+      error_data?: { details?: string }
+    }>
+  },
+  /** The business number the callback is for — resolves the owning
+   *  account when the message id matches no stored row. */
+  phoneNumberId: string,
+) {
   // 1) Mirror onto messages (legacy behavior) — Meta's status values
   //    already match the CHECK constraint on messages.status. No
   //    `.select()`: message_id is NOT unique (migration 009 — Meta ids
@@ -461,6 +466,48 @@ async function handleStatusUpdate(status: {
           status: status.status,
         }
       )
+    }
+  }
+
+  // 4) Untracked failed send. The broadcast wizard's "Send test"
+  //    deliberately writes no messages/broadcast_recipients rows, so
+  //    when Meta later reports the send failed, the callback matched
+  //    nothing above and the error reason used to vanish — the UI said
+  //    "sent" and the message just never arrived, with no trace. Keep
+  //    the reason: log it and raise an in-app notification for the
+  //    account owner.
+  if (status.status === 'failed' && !msgRow && !recipient) {
+    const e = status.errors?.[0]
+    const detail = e
+      ? [`#${e.code}`, e.title ?? e.message ?? '', e.error_data?.details ?? '']
+          .filter(Boolean)
+          .join(' — ')
+      : 'Meta reported no error details'
+    console.error(
+      `[webhook] untracked send to +${status.recipient_id} failed:`,
+      detail,
+    )
+    const { data: cfg } = await supabaseAdmin()
+      .from('whatsapp_config')
+      .select('account_id, user_id')
+      .eq('phone_number_id', phoneNumberId)
+      .maybeSingle()
+    if (cfg) {
+      const { error: notifErr } = await supabaseAdmin()
+        .from('notifications')
+        .insert({
+          account_id: cfg.account_id,
+          user_id: cfg.user_id,
+          // Only value the notifications.type CHECK allows (migration
+          // 027); the title carries the real meaning, same convention
+          // as the AI's visit-booking / parts-order notices.
+          type: 'conversation_assigned',
+          title: `Message to +${status.recipient_id} failed`,
+          body: detail,
+        })
+      if (notifErr) {
+        console.error('[webhook] failed-send notification insert failed:', notifErr)
+      }
     }
   }
 }
