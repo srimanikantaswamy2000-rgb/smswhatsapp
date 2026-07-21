@@ -9,6 +9,7 @@ import { verifyMetaWebhookSignature } from '@/lib/whatsapp/webhook-signature'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
+import { isBareGreeting } from '@/lib/ai/greeting'
 import { parseTeamVerdict } from '@/lib/ai/parts'
 import { engineSendText } from '@/lib/flows/meta-send'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
@@ -907,14 +908,21 @@ async function processMessage(
   // so users can pick whichever semantic they want; an automation that
   // listens to only one trigger runs only when that trigger matches.
   if (contactOutcome.wasCreated) automationTriggers.unshift('new_contact_created')
-  // A first reply to a marketing broadcast re-runs the welcome
-  // (greeting + menu) automation, same as a true first contact — the
-  // customer just raised their hand after a promotion. BUT only when the
-  // reply carries no specific intent: a customer who taps a promo's
-  // "EMI details" / "harvester details" button wants THAT content, not a
-  // generic menu on top of it. An interactive tap therefore skips the
-  // welcome and routes straight to its own interactive_reply handler.
-  if ((isFirstInboundMessage || isBroadcastReply) && !interactiveReplyId)
+  // First-contact welcome (greeting + menu) semantics:
+  //   - A specific interactive tap (EMI/harvester details) → no welcome;
+  //     it routes to its own handler.
+  //   - A first message that is JUST a greeting ("hi") → welcome now, and
+  //     the AI stands down (isWelcomeInbound below) so they get one menu.
+  //   - A first message with real content ("my DC-68G won't start") →
+  //     the AI PROCESSES it first (reply), THEN the menu is sent after
+  //     the AI reply (see the post-dispatch block below) so the customer
+  //     gets their answer, followed by the menu — not the menu instead.
+  const firstContact = isFirstInboundMessage || isBroadcastReply
+  const welcomeForGreeting =
+    firstContact && !interactiveReplyId && isBareGreeting(inboundText)
+  const substantiveFirstContact =
+    firstContact && !interactiveReplyId && !isBareGreeting(inboundText)
+  if (welcomeForGreeting)
     automationTriggers.unshift('first_inbound_message')
   for (const triggerType of automationTriggers) {
     // Sequential so a multi-trigger inbound (welcome + keyword…) sends
@@ -982,13 +990,27 @@ async function processMessage(
       contactId: contactRecord.id,
       configOwnerUserId,
       inboundText,
-      // The welcome (greeting+menu) automation answers this inbound —
-      // the AI stands down so the customer gets exactly one message. But
-      // a specific interactive tap skips the welcome (see above), so the
-      // AI is free to engage the tap (e.g. product photos after a
-      // harvester-details tap).
-      isWelcomeInbound:
-        (isFirstInboundMessage || isBroadcastReply) && !interactiveReplyId,
+      // The AI stands down ONLY when the welcome menu is the answer —
+      // i.e. a first-contact BARE GREETING. A substantive first message
+      // is processed by the AI (the menu follows it below); an
+      // interactive tap has its own handler.
+      isWelcomeInbound: welcomeForGreeting,
+    })
+  }
+
+  // Substantive first message → the AI has now replied to it; send the
+  // welcome menu AS A FOLLOW-UP so the customer gets their answer first,
+  // then their options. (For a bare greeting the menu already went out
+  // above; for a tap there is no welcome.)
+  if (substantiveFirstContact) {
+    await runAutomationsForTrigger({
+      accountId,
+      triggerType: 'first_inbound_message',
+      contactId: contactRecord.id,
+      context: {
+        message_text: inboundText,
+        conversation_id: conversation.id,
+      },
     })
   }
 
