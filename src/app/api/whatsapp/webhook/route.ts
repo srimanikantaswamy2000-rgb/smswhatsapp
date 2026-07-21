@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { decrypt, encrypt, isLegacyFormat } from '@/lib/whatsapp/encryption'
 import { getMediaUrl, downloadMedia } from '@/lib/whatsapp/meta-api'
 import { normalizePhone } from '@/lib/whatsapp/phone-utils'
+import { canonicalizeTemplateButtonId } from '@/lib/whatsapp/template-button-aliases'
 import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe'
 import { verifyMetaWebhookSignature } from '@/lib/whatsapp/webhook-signature'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
@@ -1138,16 +1139,20 @@ async function parseMessageContent(
 
     case 'button': {
       // Template QUICK_REPLY button tap (e.g. a broadcast's "EMI వివరాలు").
-      // `text` is the visible label; `payload` is the stable value set on
-      // the button at template creation. Mirror the interactive case:
-      // human-readable text for the inbox, payload as the routing id so
-      // the Flows / AI engine can act on which option was chosen.
+      // `text` is the visible label; `payload` is what Meta echoes back —
+      // for marketing quick-reply buttons that's the label itself, which
+      // matches no menu handler. Canonicalize it to the equivalent menu
+      // id (menu_harvesters / menu_emi / …) so the tap routes into the
+      // existing automations + AI exactly like an in-app menu tap; keep
+      // the human-readable label as contentText for the inbox bubble.
       const btn = message.button
       if (btn?.text || btn?.payload) {
         return {
           ...empty,
           contentText: btn.text || btn.payload || null,
-          interactiveReplyId: btn.payload ?? btn.text ?? null,
+          interactiveReplyId: canonicalizeTemplateButtonId(
+            btn.payload ?? btn.text ?? null,
+          ),
         }
       }
       return { ...empty, contentText: '[Button reply]' }

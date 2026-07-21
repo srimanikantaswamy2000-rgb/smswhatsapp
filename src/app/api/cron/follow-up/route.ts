@@ -27,8 +27,10 @@ import { engineSendInteractiveButtons } from '@/lib/flows/meta-send'
 const FOLLOWUP_MARKER = '⏳ '
 const BODY =
   FOLLOWUP_MARKER +
-  'నమస్తే! మీ ఆసక్తికి ధన్యవాదాలు 🙏 మీకు ఎలా ముందుకు వెళ్లాలో ఎంచుకోండి:\n' +
-  'Thank you for your interest! How would you like to continue?'
+  'నమస్తే! మీ ఆసక్తికి ధన్యవాదాలు 🙏\n' +
+  '🏦 SBI ప్రత్యేక EMI స్కీమ్ — సెప్టెంబర్ 2026 వరకు మాత్రమే!\n' +
+  'మీకు ఎలా ముందుకు వెళ్లాలో ఎంచుకోండి:\n' +
+  'Thank you for your interest! A special SBI EMI scheme is on until September 2026 — how would you like to continue?'
 const BUTTONS = [
   { id: 'followup_appointment', title: '📅 అపాయింట్మెంట్' },
   { id: 'followup_showroom', title: '🏢 షోరూమ్ విజిట్' },
