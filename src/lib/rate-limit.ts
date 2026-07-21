@@ -117,10 +117,17 @@ export const RATE_LIMITS = {
   /** Individual message send. 60/min per user = one per second
    *  sustained, comfortable for a live human typing. */
   send: { limit: 60, windowMs: 60_000 },
-  /** Broadcast dispatch. 5/min per user — even a 1 000-recipient
-   *  broadcast is one call; this caps the rate at which a single user
-   *  can launch campaigns, not the messages inside one. */
-  broadcast: { limit: 5, windowMs: 60_000 },
+  /** Broadcast dispatch. NOT one call per campaign — the sending hook
+   *  fans a campaign out in batches of SEND_BATCH_SIZE (10) recipients,
+   *  one POST per batch, with a ~1 s inter-batch pause. So a
+   *  1 000-recipient broadcast is ~100 calls, and the ceiling is set by
+   *  the batch cadence (~60 calls/min max), not the campaign count. The
+   *  old 5/min silently failed whole 10-recipient batches once a
+   *  campaign exceeded 50 recipients. 120/min gives ~2× headroom over
+   *  the fastest possible cadence so broadcasts of any size complete,
+   *  while still bounding a runaway script (each call sends ≤10 real
+   *  messages, and Meta's own daily cap is the ultimate limit). */
+  broadcast: { limit: 120, windowMs: 60_000 },
   /** Reaction add/swap/remove. More permissive than send — users
    *  fidget with reactions and a single "swap" is actually two calls
    *  (remove + add) under the hood. */

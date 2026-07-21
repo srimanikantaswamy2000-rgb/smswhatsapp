@@ -98,7 +98,10 @@ describe("RATE_LIMITS presets", () => {
     __resetRateLimitForTests();
     // Importing here so the presets stay close to their assertions.
     const { RATE_LIMITS } = await import("./rate-limit");
-    expect(RATE_LIMITS.send.limit).toBeGreaterThan(RATE_LIMITS.broadcast.limit);
+    // Broadcast is metered per 10-recipient batch call, not per campaign,
+    // so its budget is intentionally higher than a single interactive
+    // send — a large broadcast makes many calls in a short window.
+    expect(RATE_LIMITS.broadcast.limit).toBeGreaterThan(RATE_LIMITS.send.limit);
     expect(RATE_LIMITS.send.windowMs).toBe(60_000);
     expect(RATE_LIMITS.broadcast.windowMs).toBe(60_000);
   });

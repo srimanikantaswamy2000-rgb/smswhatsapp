@@ -59,6 +59,16 @@ interface WhatsAppMessage {
     button_reply?: { id: string; title: string }
     list_reply?: { id: string; title: string; description?: string }
   }
+  /**
+   * Set when the customer taps a QUICK_REPLY button on a *template*
+   * message (e.g. a broadcast). Distinct from `interactive` — Meta
+   * delivers template button taps as message.type='button' with
+   * `{ text, payload }`, where `payload` is the value set on the button
+   * at template-creation time. Without handling this, template button
+   * replies were stored as "[Unsupported message type: button]" and the
+   * customer's choice (which button) was lost.
+   */
+  button?: { text?: string; payload?: string }
   /** Present when the customer swipe-replies to one of our messages. */
   context?: { id: string }
 }
@@ -739,8 +749,10 @@ async function processMessage(
   const contentType = ALLOWED_CONTENT_TYPES.has(message.type)
     ? message.type
     : message.type === 'sticker'
-      ? 'image'   // stickers are images
-      : 'text'    // reaction, unknown → text fallback
+      ? 'image'         // stickers are images
+      : message.type === 'button'
+        ? 'interactive' // template QUICK_REPLY tap — a button tap like 'interactive'
+        : 'text'        // reaction, unknown → text fallback
 
   // Determine whether this is the contact's very first inbound message
   // BEFORE we insert, so the count is accurate. Covers the case where
@@ -1122,6 +1134,23 @@ async function parseMessageContent(
         }
       }
       return { ...empty, contentText: '[Interactive reply]' }
+    }
+
+    case 'button': {
+      // Template QUICK_REPLY button tap (e.g. a broadcast's "EMI వివరాలు").
+      // `text` is the visible label; `payload` is the stable value set on
+      // the button at template creation. Mirror the interactive case:
+      // human-readable text for the inbox, payload as the routing id so
+      // the Flows / AI engine can act on which option was chosen.
+      const btn = message.button
+      if (btn?.text || btn?.payload) {
+        return {
+          ...empty,
+          contentText: btn.text || btn.payload || null,
+          interactiveReplyId: btn.payload ?? btn.text ?? null,
+        }
+      }
+      return { ...empty, contentText: '[Button reply]' }
     }
 
     default:
