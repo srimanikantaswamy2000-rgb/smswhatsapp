@@ -909,8 +909,12 @@ async function processMessage(
   if (contactOutcome.wasCreated) automationTriggers.unshift('new_contact_created')
   // A first reply to a marketing broadcast re-runs the welcome
   // (greeting + menu) automation, same as a true first contact — the
-  // customer just raised their hand after a promotion.
-  if (isFirstInboundMessage || isBroadcastReply)
+  // customer just raised their hand after a promotion. BUT only when the
+  // reply carries no specific intent: a customer who taps a promo's
+  // "EMI details" / "harvester details" button wants THAT content, not a
+  // generic menu on top of it. An interactive tap therefore skips the
+  // welcome and routes straight to its own interactive_reply handler.
+  if ((isFirstInboundMessage || isBroadcastReply) && !interactiveReplyId)
     automationTriggers.unshift('first_inbound_message')
   for (const triggerType of automationTriggers) {
     // Sequential so a multi-trigger inbound (welcome + keyword…) sends
@@ -979,8 +983,12 @@ async function processMessage(
       configOwnerUserId,
       inboundText,
       // The welcome (greeting+menu) automation answers this inbound —
-      // the AI stands down so the customer gets exactly one message.
-      isWelcomeInbound: isFirstInboundMessage || isBroadcastReply,
+      // the AI stands down so the customer gets exactly one message. But
+      // a specific interactive tap skips the welcome (see above), so the
+      // AI is free to engage the tap (e.g. product photos after a
+      // harvester-details tap).
+      isWelcomeInbound:
+        (isFirstInboundMessage || isBroadcastReply) && !interactiveReplyId,
     })
   }
 
