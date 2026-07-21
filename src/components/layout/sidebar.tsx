@@ -29,6 +29,7 @@ import {
   Users,
   UsersRound,
   Workflow,
+  Wrench,
   X,
   Zap,
 } from "lucide-react";
@@ -105,6 +106,7 @@ const navItems: NavItem[] = [
   { href: "/flows", labelKey: "flows", icon: Workflow, beta: true },
   { href: "/agents", labelKey: "aiAgents", icon: Bot },
   { href: "/appointments", labelKey: "appointments", icon: CalendarDays },
+  { href: "/service", labelKey: "service", icon: Wrench },
   { href: "/inventory", labelKey: "inventory", icon: Package },
   { href: "/catalog", labelKey: "catalog", icon: Tractor },
   { href: "/reports", labelKey: "reports", icon: FileText },
