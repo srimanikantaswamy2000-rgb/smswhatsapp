@@ -17,6 +17,13 @@ import {
   resolveMediaForSend,
 } from './media'
 import { parseVisitDirective } from './visit'
+import { parseServiceDirectives } from './service'
+import {
+  sendDeptAlert,
+  SERVICE_TEAM_PHONE,
+  SPARES_TEAM_PHONE,
+  DEPT_LABEL,
+} from './dept-alert'
 import { triggerMatches } from '@/lib/automations/engine'
 import {
   extractPartTokens,
@@ -289,7 +296,12 @@ export async function dispatchInboundToAiReply(
     // `[[ORDER:...]]` — the customer confirmed a spare-part order.
     // Record it and ping the spare-parts team. Best-effort, like the
     // visit booking.
-    const { cleanedText, orders } = parseOrderDirectives(textAfterVisit)
+    const { cleanedText: textAfterOrder, orders } =
+      parseOrderDirectives(textAfterVisit)
+
+    // `[[SERVICE:model|complaint]]` — the customer reported a machine
+    // problem. Record it on the Service list and alert the service desk.
+    const { cleanedText, services } = parseServiceDirectives(textAfterOrder)
     if (orders.length > 0) {
       try {
         const { data: orderContact } = await db
@@ -327,9 +339,72 @@ export async function dispatchInboundToAiReply(
             conversationId,
             contactId,
           })
+          // Utility-template alert to the SPARES desk (reaches them even
+          // outside a 24h window, unlike the free-form ping above).
+          await sendDeptAlert({
+            accountId,
+            toPhone: SPARES_TEAM_PHONE,
+            type: DEPT_LABEL.spares,
+            customerName: orderContact?.name ?? null,
+            customerPhone: orderContact?.phone ?? null,
+            item: [order.partNumber, order.partName].filter(Boolean).join(' '),
+            details: `${order.qty} units`,
+          })
         }
       } catch (err) {
         console.error('[ai auto-reply] part order handling failed:', err)
+      }
+    }
+
+    // `[[SERVICE:...]]` complaints → service_requests row + service-desk
+    // alert. Best-effort, mirrors the parts flow above.
+    if (services.length > 0) {
+      try {
+        const { data: svcContact } = await db
+          .from('contacts')
+          .select('phone, name')
+          .eq('id', contactId)
+          .maybeSingle()
+        for (const svc of services) {
+          const { data: inserted, error: svcErr } = await db
+            .from('service_requests')
+            .insert({
+              user_id: configOwnerUserId,
+              contact_id: contactId,
+              conversation_id: conversationId,
+              machine_model: svc.model || null,
+              complaint: svc.complaint,
+              customer_phone: svcContact?.phone ?? null,
+              customer_name: svcContact?.name ?? null,
+              team_notified_at: new Date().toISOString(),
+            })
+            .select('request_no')
+            .single()
+          if (svcErr || !inserted) {
+            console.error('[ai auto-reply] service request insert failed:', svcErr)
+            continue
+          }
+          await db.from('notifications').insert({
+            account_id: accountId,
+            user_id: configOwnerUserId,
+            type: 'conversation_assigned',
+            conversation_id: conversationId,
+            contact_id: contactId,
+            title: `Service request #${inserted.request_no}`,
+            body: `${svcContact?.name ?? svcContact?.phone ?? 'Customer'} — ${svc.model || 'machine'} — ${svc.complaint}`,
+          })
+          await sendDeptAlert({
+            accountId,
+            toPhone: SERVICE_TEAM_PHONE,
+            type: DEPT_LABEL.service,
+            customerName: svcContact?.name ?? null,
+            customerPhone: svcContact?.phone ?? null,
+            item: svc.model || null,
+            details: svc.complaint,
+          })
+        }
+      } catch (err) {
+        console.error('[ai auto-reply] service request handling failed:', err)
       }
     }
     if (requestedTimeIso) {
