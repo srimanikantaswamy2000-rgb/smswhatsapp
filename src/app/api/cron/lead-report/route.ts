@@ -11,6 +11,7 @@ import {
   type LeadInput,
 } from '@/lib/leads/qualify'
 import { buildLeadReportPdf } from '@/lib/leads/report-pdf'
+import { sendDepartmentDigests } from '@/lib/leads/dept-digest'
 
 /**
  * Daily lead-qualification report + hot-lead follow-ups.
@@ -303,6 +304,21 @@ export async function GET(request: Request) {
   const reportSentViaWhatsApp = Object.values(delivery).some((d) => d.text)
   const pdfSentViaWhatsApp = Object.values(delivery).some((d) => d.pdf)
 
+  // Department digests: Service → service desk, Spares → spares desk.
+  // (Sales is this very lead report.) Best-effort — never blocks.
+  let deptDigests = null
+  try {
+    deptDigests = await sendDepartmentDigests({
+      db,
+      accountId,
+      ownerUserId,
+      phoneNumberId: waCfg?.phone_number_id ?? null,
+      accessToken,
+    })
+  } catch (err) {
+    console.error('[lead-report] department digests failed:', err)
+  }
+
   // 4) Follow up every hot lead, once per window.
   let followUps = 0
   for (const lead of leads) {
@@ -341,5 +357,6 @@ export async function GET(request: Request) {
     pdfSentViaWhatsApp,
     delivery,
     pdfUrl,
+    deptDigests,
   })
 }
