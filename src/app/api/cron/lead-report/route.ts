@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { engineSendText, engineSendMedia } from '@/lib/flows/meta-send'
+import { sendTemplateMessage } from '@/lib/whatsapp/meta-api'
+import { decrypt } from '@/lib/whatsapp/encryption'
+import { isMessageTemplate } from '@/lib/whatsapp/template-row-guard'
 import {
   scoreLead,
   followUpText,
@@ -191,14 +194,59 @@ export async function GET(request: Request) {
     console.error('[lead-report] PDF build/upload failed:', err)
   }
 
-  // Deliver to every team number that has a conversation with the
-  // business (Meta only allows free-form sends inside an open customer
-  // window — each recipient must have messaged the business number at
-  // least once, ideally within 24h). Failures are per-recipient.
+  // The approved `lead_report_te` UTILITY template lets us deliver the
+  // report (PDF + summary) even OUTSIDE a 24h window — no team member
+  // has to text first. Loaded once; falls back to free-form when the
+  // template isn't approved yet or the send fails.
+  const { data: waCfg } = await db
+    .from('whatsapp_config')
+    .select('phone_number_id, access_token')
+    .eq('account_id', accountId)
+    .limit(1)
+    .maybeSingle()
+  const accessToken = waCfg?.access_token ? decrypt(waCfg.access_token) : null
+  const { data: rawReportTpl } = await db
+    .from('message_templates')
+    .select('*')
+    .eq('account_id', accountId)
+    .eq('name', 'lead_report_te')
+    .eq('status', 'APPROVED')
+    .maybeSingle()
+  const reportTpl =
+    rawReportTpl && isMessageTemplate(rawReportTpl) ? rawReportTpl : null
+  const hotCount = String(leads.filter((l) => l.grade === 'hot').length)
+  const totalCount = String(leads.length)
+
+  // Deliver to every team number. Primary path is the utility template
+  // (always delivers); free-form text/PDF is a best-effort extra/fallback
+  // that only lands inside an open 24h window. Failures are per-recipient.
   const delivery: Record<string, { text: boolean; pdf: boolean; note?: string }> = {}
   for (const teamDigits of TEAM_REPORT_PHONES) {
     const result = { text: false, pdf: false } as { text: boolean; pdf: boolean; note?: string }
     delivery[teamDigits] = result
+
+    // (a) Utility template — no conversation/window required.
+    if (accessToken && reportTpl && pdfUrl && waCfg?.phone_number_id) {
+      try {
+        await sendTemplateMessage({
+          phoneNumberId: waCfg.phone_number_id,
+          accessToken,
+          to: teamDigits,
+          templateName: 'lead_report_te',
+          language: reportTpl.language || 'te',
+          template: reportTpl,
+          params: [windowLabel, hotCount, totalCount],
+          messageParams: { headerMediaUrl: pdfUrl },
+        })
+        result.pdf = true // the PDF is delivered as the template's header
+        result.note = 'template'
+      } catch (err) {
+        console.error(`[lead-report] template send to ${teamDigits} failed:`, err)
+      }
+    }
+
+    // (b) Free-form richer text + PDF fallback — only lands in an open
+    // 24h window; skipped cleanly when there's no conversation.
     const { data: teamContact } = await db
       .from('contacts')
       .select('id, phone')
@@ -207,7 +255,7 @@ export async function GET(request: Request) {
       .limit(1)
       .maybeSingle()
     if (!teamContact) {
-      result.note = 'no contact — this number must message the business once'
+      if (!result.pdf) result.note = 'no contact — this number must message the business once'
       continue
     }
     const { data: teamConv } = await db
@@ -218,7 +266,7 @@ export async function GET(request: Request) {
       .limit(1)
       .maybeSingle()
     if (!teamConv) {
-      result.note = 'no conversation'
+      if (!result.pdf) result.note = 'no conversation'
       continue
     }
     try {
@@ -233,8 +281,8 @@ export async function GET(request: Request) {
     } catch (err) {
       console.error(`[lead-report] WhatsApp report send to ${teamDigits} failed:`, err)
     }
-    // The PDF rides along as a proper document (openable/printable).
-    if (pdfUrl) {
+    // Free-form PDF only when the template didn't already carry it.
+    if (pdfUrl && !result.pdf) {
       try {
         await engineSendMedia({
           accountId,
