@@ -857,7 +857,8 @@
         "pickAnOptionHint": "Search for someone above, or pick a group, to see how many people.",
         "errorCsvNoValidPhones": "No valid phone numbers in that file. Check the phone column.",
         "csvSkippedRows": "{count, plural, one {# row skipped — not a valid phone number} other {# rows skipped — not valid phone numbers}}",
-        "csvExcludeNote": "Final count may be lower — left-out groups are applied when sending."
+        "csvExcludeNote": "Final count may be lower — left-out groups are applied when sending.",
+        "geoEveryoneWarning": "No district picked — this sends to EVERY contact you have."
       },
       "personalize": {
         "title": "Step 3: Fill in the blanks",

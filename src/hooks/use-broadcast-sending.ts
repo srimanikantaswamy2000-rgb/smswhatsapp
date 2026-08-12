@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { Contact, MessageTemplate } from '@/types';
+import { geoAudienceRpcArgs } from '@/lib/broadcasts/geo-audience';
 import { normalizeKey } from '@/lib/contacts/dedupe';
 import { phonesMatch } from '@/lib/whatsapp/phone-utils';
 
@@ -142,14 +143,10 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
       // step 2 — so the number the user approved is exactly the number
       // that gets messaged. p_limit null returns the whole audience.
       if (!accountId) throw new Error('Your profile is not linked to an account.');
-      const { data, error } = await supabase.rpc('resolve_broadcast_audience', {
-        p_account_id: accountId,
-        p_districts: audience.districts ?? [],
-        p_mandals: audience.mandals ?? [],
-        p_tag_ids: audience.tagIds ?? [],
-        p_exclude_tag_ids: audience.excludeTagIds ?? [],
-        p_limit: null,
-      });
+      const { data, error } = await supabase.rpc(
+        'resolve_broadcast_audience',
+        geoAudienceRpcArgs(accountId, audience, null),
+      );
       if (error) throw new Error(`Failed to resolve audience: ${error.message}`);
       contacts = ((data ?? []) as { contact: Contact }[]).map((r) => r.contact);
       return contacts;

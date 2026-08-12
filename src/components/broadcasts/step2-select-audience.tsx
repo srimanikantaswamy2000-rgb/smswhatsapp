@@ -6,6 +6,10 @@ import { Contact, CustomField, Tag } from '@/types';
 import { parseContactCsv } from '@/lib/contacts/parse-contact-csv';
 import { isValidE164 } from '@/lib/whatsapp/phone-utils';
 import { orLiteral } from '@/lib/supabase/or-filter';
+import {
+  geoAudienceRpcArgs,
+  targetsEveryone,
+} from '@/lib/broadcasts/geo-audience';
 import { Button } from '@/components/ui/button';
 import {
   Users,
@@ -250,14 +254,10 @@ export function Step2SelectAudience({
           setEstimatedCount(null);
           return;
         }
-        const { data, error } = await supabase.rpc('resolve_broadcast_audience', {
-          p_account_id: accountId,
-          p_districts: audience.districts ?? [],
-          p_mandals: audience.mandals ?? [],
-          p_tag_ids: audience.tagIds ?? [],
-          p_exclude_tag_ids: audience.excludeTagIds ?? [],
-          p_limit: 1,
-        });
+        const { data, error } = await supabase.rpc(
+          'resolve_broadcast_audience',
+          geoAudienceRpcArgs(accountId, audience, 1),
+        );
         if (error) {
           setEstimatedCount(null);
           return;
@@ -903,6 +903,14 @@ export function Step2SelectAudience({
               <p className="text-sm text-muted-foreground">
                 {t('selectAudience.peopleWillGetIt', { count: estimatedCount })}
               </p>
+              {/* A geo audience with nothing picked is not "no filter yet"
+                  — it resolves to the entire database. Say so loudly:
+                  it is one tap from a send to every contact. */}
+              {audience.type === 'geo' && targetsEveryone(audience) && (
+                <p className="mt-1 text-xs font-semibold text-amber-500">
+                  {t('selectAudience.geoEveryoneWarning')}
+                </p>
+              )}
               {/* A CSV audience is counted from the file, but excludes are
                   applied at send time against contacts that the upsert
                   creates or matches — so the final number can only be

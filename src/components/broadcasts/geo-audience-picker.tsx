@@ -139,9 +139,13 @@ export function GeoAudiencePicker({
         <div className="mb-1.5 flex items-center justify-between">
           <label className="block text-xs font-medium text-muted-foreground">
             Districts{' '}
-            {districts.length === 0
-              ? '— all districts'
-              : `— ${districts.length} selected`}
+            {districts.length === 0 ? (
+              <span className="font-semibold text-amber-500">
+                — none picked: EVERY contact ({totalContacts.toLocaleString()})
+              </span>
+            ) : (
+              `— ${districts.length} selected · ${selectedTotal.toLocaleString()} contacts`
+            )}
           </label>
           {districts.length > 0 && (
             <button
@@ -149,7 +153,11 @@ export function GeoAudiencePicker({
               onClick={() => onChange({ districts: [], mandals: [] })}
               className="text-xs text-muted-foreground underline hover:text-foreground"
             >
-              All districts
+              {/* Was labelled "All districts", which reads as "select
+                  them all" but actually clears the selection — and an
+                  empty selection means EVERY contact. That mislabel is
+                  one tap away from a send to the whole database. */}
+              Clear selection
             </button>
           )}
         </div>
