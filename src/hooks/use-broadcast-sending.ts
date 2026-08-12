@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { Contact, MessageTemplate } from '@/types';
+import { normalizeKey } from '@/lib/contacts/dedupe';
+import { phonesMatch } from '@/lib/whatsapp/phone-utils';
 
 export type CustomFieldOperator = 'is' | 'is_not' | 'contains';
 
@@ -144,6 +146,7 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
         p_account_id: accountId,
         p_districts: audience.districts ?? [],
         p_mandals: audience.mandals ?? [],
+        p_tag_ids: audience.tagIds ?? [],
         p_exclude_tag_ids: audience.excludeTagIds ?? [],
         p_limit: null,
       });
@@ -196,7 +199,8 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
     }
 
     // Apply exclude tags (works across all contact-derived audience
-    // types). CSV contacts are synthetic so exclusion doesn't apply.
+    // types — including CSV, whose rows are upserted into real contacts
+    // above and so can carry tags like any other).
     if (audience.excludeTagIds && audience.excludeTagIds.length > 0) {
       const { data: excludeRows } = await supabase
         .from('contact_tags')
@@ -237,37 +241,55 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
       throw new Error('Your profile is not linked to an account.');
     }
 
-    // De-duplicate by phone within the CSV (users can paste duplicates).
-    const uniqueByPhone = new Map<string, { phone: string; name?: string }>();
+    // De-duplicate on the canonical digits-only key, not the raw string:
+    // "9493847755", "+91 94938 47755" and "094938-47755" are one person.
+    const uniqueByKey = new Map<string, { phone: string; name?: string }>();
     for (const row of csvRows) {
-      if (row.phone) uniqueByPhone.set(row.phone, row);
+      const key = normalizeKey(row.phone);
+      if (key && !uniqueByKey.has(key)) uniqueByKey.set(key, row);
     }
-    const phones = [...uniqueByPhone.keys()];
+    const keys = [...uniqueByKey.keys()];
 
-    // Single round-trip lookup of existing contacts by phone.
-    const { data: existing, error: lookupErr } = await supabase
-      .from('contacts')
-      .select('*')
-      .eq('user_id', user.id)
-      .in('phone', phones);
-    if (lookupErr) {
-      throw new Error(`Failed to look up CSV contacts: ${lookupErr.message}`);
-    }
-
-    const byPhone = new Map<string, Contact>();
-    for (const c of (existing ?? []) as Contact[]) {
-      if (c.phone) byPhone.set(c.phone, c);
+    // Look up existing contacts by the last-8-digit suffix, then apply
+    // the strict `phonesMatch` in JS — the same two-stage rule
+    // src/lib/contacts/dedupe.ts uses for the webhook and the contact
+    // form. Matching the raw `phone` string instead (as this used to)
+    // missed every bare local number against a stored "+91…" row and
+    // inserted a permanent duplicate that the unique index on
+    // (account_id, phone_normalized) could not catch either. The lookup
+    // is also scoped by account_id, not user_id: a teammate's contact in
+    // the same account is the same contact.
+    const byKey = new Map<string, Contact>();
+    const SUFFIX_CHUNK = 50;
+    for (let i = 0; i < keys.length; i += SUFFIX_CHUNK) {
+      const chunk = keys.slice(i, i + SUFFIX_CHUNK);
+      const filters = chunk
+        .map((k) => `phone_normalized.like.*${k.length >= 8 ? k.slice(-8) : k}`)
+        .join(',');
+      const { data: existing, error: lookupErr } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('account_id', accountId)
+        .or(filters);
+      if (lookupErr) {
+        throw new Error(`Failed to look up CSV contacts: ${lookupErr.message}`);
+      }
+      for (const c of (existing ?? []) as Contact[]) {
+        const hit = chunk.find((k) => phonesMatch(c.phone, k));
+        if (hit && !byKey.has(hit)) byKey.set(hit, c);
+      }
     }
 
     // Insert only missing contacts, in one batch per 200 rows (PostgREST
     // has a default payload cap — 200 keeps individual requests small).
-    const missing = phones
-      .filter((p) => !byPhone.has(p))
-      .map((phone) => ({
+    // Store E.164 so new rows match the existing "+91…" convention.
+    const missing = keys
+      .filter((k) => !byKey.has(k))
+      .map((key) => ({
         user_id: user.id,
         account_id: accountId,
-        phone,
-        name: uniqueByPhone.get(phone)?.name ?? null,
+        phone: `+${key}`,
+        name: uniqueByKey.get(key)?.name ?? null,
       }));
 
     const INSERT_CHUNK = 200;
@@ -281,13 +303,14 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
         throw new Error(`Failed to create CSV contacts: ${insertErr.message}`);
       }
       for (const c of (inserted ?? []) as Contact[]) {
-        if (c.phone) byPhone.set(c.phone, c);
+        const key = normalizeKey(c.phone);
+        if (key) byKey.set(key, c);
       }
     }
 
     // Preserve input order so analytics roughly matches the CSV order.
-    return phones
-      .map((p) => byPhone.get(p))
+    return keys
+      .map((k) => byKey.get(k))
       .filter((c): c is Contact => Boolean(c));
   }
 
