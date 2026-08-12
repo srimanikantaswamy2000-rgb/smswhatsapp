@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
@@ -66,8 +66,23 @@ export function ContactForm({
   const [checkingDup, setCheckingDup] = useState(false);
 
   const [tags, setTags] = useState<Tag[]>([]);
+  /** Filter for the tag chips — the account has ~200 tags, so an
+   *  unfiltered wall of them is unusable even once it scrolls. */
+  const [tagQuery, setTagQuery] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [loadingTags, setLoadingTags] = useState(false);
+
+  /** Tags matching the filter, plus any already-selected tag regardless
+   *  of the filter — otherwise typing a query hides a chip the user
+   *  picked and they cannot unpick it. */
+  const visibleTags = useMemo(() => {
+    const q = tagQuery.trim().toLowerCase();
+    if (!q) return tags;
+    return tags.filter(
+      (tag) =>
+        tag.name.toLowerCase().includes(q) || selectedTagIds.includes(tag.id),
+    );
+  }, [tags, tagQuery, selectedTagIds]);
 
   useEffect(() => {
     if (open) {
@@ -225,7 +240,13 @@ export function ContactForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-popover border-border text-popover-foreground sm:max-w-md">
+      {/* max-h + overflow are load-bearing, not cosmetic. The dialog is
+          centred with translate(-50%,-50%), so content taller than the
+          viewport spills off the top AND bottom equally: with ~200 tags
+          rendered below, the name/phone fields and the Save button both
+          ended up off-screen and unreachable, leaving only the middle
+          of the tag list visible and no way to scroll. */}
+      <DialogContent className="bg-popover border-border text-popover-foreground sm:max-w-md max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-popover-foreground">
             {isEdit ? t('editTitle') : t('addTitle')}
@@ -338,8 +359,20 @@ export function ContactForm({
                 {t('noTagsAvailable')}
               </p>
             ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {tags.map((tag) => {
+              <>
+                <input
+                  type="text"
+                  value={tagQuery}
+                  onChange={(e) => setTagQuery(e.target.value)}
+                  placeholder={t('tagsPlaceholder')}
+                  className="mb-2 h-9 w-full rounded-md border border-border bg-muted px-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+                <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
+                {visibleTags.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    {t('noTagsFound')}
+                  </p>
+                ) : visibleTags.map((tag) => {
                   const selected = selectedTagIds.includes(tag.id);
                   return (
                     <button
@@ -361,7 +394,8 @@ export function ContactForm({
                     </button>
                   );
                 })}
-              </div>
+                </div>
+              </>
             )}
           </div>
 
