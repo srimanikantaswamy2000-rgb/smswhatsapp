@@ -36,7 +36,7 @@ const OFFERS_TEXT =
   '📋 ఇన్సూరెన్స్ + TR/PR రిజిస్ట్రేషన్ మేమే చూసుకుంటాము\n\n' +
   'Free field demo at your farm · Finance from 55 paise per ₹100/month · Doorstep service with genuine Kubota spares · Insurance + registration handled by us.\n\n' +
   'ఈ రోజు ప్రత్యేక ధర కోసం కాల్ చేయండి / Call for today’s best price:\n' +
-  '📞 +91 85006 66928 / +91 94938 47755';
+  '📞 +91 90638 55903 / +91 85006 66928';
 
 const OFFERS_ROW = {
   id: 'menu_offers',

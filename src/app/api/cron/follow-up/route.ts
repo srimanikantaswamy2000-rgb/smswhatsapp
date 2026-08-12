@@ -41,7 +41,7 @@ const BUTTONS = [
 function teamDigits(): Set<string> {
   const raw = [
     process.env.TEAM_REPORT_PHONES ?? '918639562351,919063855903,918500666928,919493652555',
-    process.env.PARTS_TEAM_PHONE ?? '918500666928',
+    process.env.PARTS_TEAM_PHONE ?? '919063855903',
   ].join(',')
   return new Set(raw.split(',').map((p) => p.replace(/\D/g, '')).filter(Boolean))
 }

@@ -137,13 +137,13 @@ export function followUpText(lead: ScoredLead): string {
     return (
       `🙏 నమస్తే${name ? ` ${name} గారు` : ''}! శ్రీ మణికంఠ స్వామి అగ్రి ఫార్మ్ నుంచి.\n\n` +
       'మీరు అడిగిన వివరాల గురించి — ఇంకా ఏమైనా సందేహాలు ఉన్నాయా? ధర, ఫైనాన్స్ (100కి 55 పైసల నుంచి), ఉచిత డెమో — ఏది కావాలన్నా రిప్లై చేయండి.\n\n' +
-      '📞 +91 85006 66928 / +91 94938 47755'
+      '📞 +91 90638 55903 / +91 85006 66928'
     );
   }
   return (
     `🙏 Namaste${name ? ` ${name} garu` : ''}! From Sri Manikanta Swamy Agri Farm.\n\n` +
     'Following up on your enquiry — any more questions? Price, finance (from 55 paise per ₹100), or a free field demo — just reply here.\n\n' +
-    '📞 +91 85006 66928 / +91 94938 47755'
+    '📞 +91 90638 55903 / +91 85006 66928'
   );
 }
 

@@ -25,7 +25,7 @@ import { sendDepartmentDigests } from '@/lib/leads/dept-digest'
  *   3. Deliver the report to the team:
  *      - a `notifications` row for the account owner (always), and
  *      - a WhatsApp text to TEAM_REPORT_PHONE (default the MD's
- *        8500666928) when that number has an open conversation —
+ *        9063855903) when that number has an open conversation —
  *        Meta only allows free text inside a 24h customer window.
  *   4. Send each HOT lead one follow-up message in their language.
  *      Their window is open by definition (they wrote within 24h).

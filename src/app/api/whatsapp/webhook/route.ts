@@ -1342,7 +1342,7 @@ async function findOrCreateConversation(
 // ============================================================
 
 /** The number the spare-parts team replies from. Defaults to the MD's. */
-const PARTS_TEAM_PHONE = process.env.PARTS_TEAM_PHONE ?? '918500666928'
+const PARTS_TEAM_PHONE = process.env.PARTS_TEAM_PHONE ?? '919063855903'
 
 interface PartsVerdictArgs {
   accountId: string
@@ -1417,8 +1417,8 @@ async function handlePartsTeamVerdict(args: PartsVerdictArgs): Promise<boolean> 
     if (order.conversation_id && order.contact_id) {
       const part = `${order.part_name ?? order.part_number} (${order.part_number})`
       const customerText = verdict.accepted
-        ? `✅ మీ స్పేర్ పార్ట్ అందుబాటులో ఉంది! / Good news — your part is available!\n${part} × ${order.qty}\nOrder #${order.order_no}. మా టీమ్ త్వరలో ధర & పికప్ వివరాలతో సంప్రదిస్తుంది. / Our team will contact you shortly with price & pickup details. 📞 8500666928`
-        : `మీ ఆర్డర్ #${order.order_no} (${part}) ప్రస్తుతం స్టాక్‌లో లేదు. / Sorry, part ${part} for order #${order.order_no} is currently out of stock.\nమేము తెప్పించి మీకు తెలియజేస్తాము. / We will arrange it and let you know. 📞 8500666928`
+        ? `✅ మీ స్పేర్ పార్ట్ అందుబాటులో ఉంది! / Good news — your part is available!\n${part} × ${order.qty}\nOrder #${order.order_no}. మా టీమ్ త్వరలో ధర & పికప్ వివరాలతో సంప్రదిస్తుంది. / Our team will contact you shortly with price & pickup details. 📞 9063855903`
+        : `మీ ఆర్డర్ #${order.order_no} (${part}) ప్రస్తుతం స్టాక్‌లో లేదు. / Sorry, part ${part} for order #${order.order_no} is currently out of stock.\nమేము తెప్పించి మీకు తెలియజేస్తాము. / We will arrange it and let you know. 📞 9063855903`
       try {
         await engineSendText({
           accountId,

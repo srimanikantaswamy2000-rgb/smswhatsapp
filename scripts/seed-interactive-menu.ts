@@ -13,7 +13,7 @@
  *
  * The customer never types anything after the first word — every path
  * is buttons/list taps, and the demo/service paths tag the contact.
- * Team numbers shown to customers: +91 85006 66928 / +91 94938 47755.
+ * Team numbers shown to customers: +91 90638 55903 / +91 85006 66928.
  *
  * Usage: npx tsx scripts/seed-interactive-menu.ts
  */
@@ -45,7 +45,7 @@ interface AutomationDef {
   steps: StepDef[]
 }
 
-const CALL_LINE = '📞 +91 85006 66928 / +91 94938 47755'
+const CALL_LINE = '📞 +91 90638 55903 / +91 85006 66928'
 
 const MENU_LIST = {
   kind: 'list',
@@ -265,8 +265,8 @@ function buildAutomations(tagIds: { demo: string; service: string }): Automation
             text:
               '📞 మా టీమ్ త్వరలో మీకు కాల్ చేస్తుంది!\n' +
               'వెంటనే మాట్లాడాలంటే ఈ నంబర్లకు కాల్ చేయండి:\n\n' +
-              '☎️ +91 85006 66928\n' +
-              '☎️ +91 94938 47755\n\n' +
+              '☎️ +91 90638 55903\n' +
+              '☎️ +91 85006 66928\n\n' +
               'Our team will call you shortly. To talk right now, call either number above.\n' +
               '🕘 సోమ–శని ఉ.9 – సా.6 · Mon–Sat 9 AM–6 PM\n' +
               '📍 ఇండియన్ ఆయిల్ బంక్ ఎదురుగా, ఆలంపురం, తాడేపల్లిగూడెం',

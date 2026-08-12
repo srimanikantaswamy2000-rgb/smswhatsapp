@@ -539,7 +539,7 @@ export async function dispatchInboundToAiReply(
 }
 
 /** Where new part orders are announced. Defaults to the MD's number. */
-const PARTS_TEAM_PHONE = process.env.PARTS_TEAM_PHONE ?? '918500666928'
+const PARTS_TEAM_PHONE = process.env.PARTS_TEAM_PHONE ?? '919063855903'
 
 interface NotifyPartsTeamArgs {
   accountId: string
