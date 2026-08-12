@@ -16,6 +16,11 @@ describe('canonicalizeTemplateButtonId', () => {
     expect(canonicalizeTemplateButtonId('టీమ్‌తో మాట్లాడాలి')).toBe('menu_talk')
   })
 
+  it('maps the appointment-reminder template buttons', () => {
+    expect(canonicalizeTemplateButtonId('వస్తాను')).toBe('appt_confirm')
+    expect(canonicalizeTemplateButtonId('సమయం మార్చాలి')).toBe('appt_reschedule')
+  })
+
   it('trims surrounding whitespace before matching', () => {
     expect(canonicalizeTemplateButtonId('  EMI వివరాలు  ')).toBe('menu_emi')
   })
