@@ -186,6 +186,21 @@ export async function dispatchInboundToAiReply(
 
     if (messages.length === 0) return
 
+    // Never call the model on a transcript with nothing to answer. With
+    // only assistant turns the model has no customer message to reply
+    // to and answers the SYSTEM PROMPT instead — it sent "I understand.
+    // I am ready to assist customers…" to a real customer on
+    // 12 Aug 2026. buildConversationContext now includes `interactive`
+    // rows so button taps count as user turns; this stays as the
+    // backstop for any future message kind that isn't mapped.
+    if (!messages.some((m) => m.role === 'user')) {
+      console.warn(
+        '[ai] skipping reply: transcript has no customer turn',
+        conversationId,
+      )
+      return
+    }
+
     // Second wave, also concurrent: knowledge retrieval + spare-parts
     // catalogue search (both only need the transcript). Parts search is
     // best-effort — a failure must not block the reply.

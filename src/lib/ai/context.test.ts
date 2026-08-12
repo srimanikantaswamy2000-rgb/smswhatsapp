@@ -92,3 +92,32 @@ describe('buildConversationContext', () => {
     })
   })
 })
+
+describe('buildConversationContext — interactive button taps', () => {
+  // Regression: a customer who only ever taps menu buttons produces
+  // nothing but `interactive` rows. While those were filtered out, the
+  // transcript held assistant turns and NO user turn, so the model
+  // answered the system prompt instead of the customer — it sent
+  // "I understand. I am ready to assist customers…" to a real customer
+  // on 12 Aug 2026.
+  it('includes customer button taps as user turns', async () => {
+    const rows = [
+      { sender_type: 'bot', content_type: 'interactive', content_text: 'harvester overview' },
+      { sender_type: 'customer', content_type: 'interactive', content_text: 'వివరాలు కావాలి' },
+    ]
+    const out = await buildConversationContext(fakeDb(rows), 'conv-1')
+    expect(out).toEqual([
+      { role: 'user', content: 'వివరాలు కావాలి' },
+      { role: 'assistant', content: 'harvester overview' },
+    ])
+  })
+
+  it('yields at least one user turn for a tap-only conversation', async () => {
+    const rows = [
+      { sender_type: 'bot', content_type: 'text', content_text: 'menu' },
+      { sender_type: 'customer', content_type: 'interactive', content_text: '🏡 ఉచిత డెమో' },
+    ]
+    const out = await buildConversationContext(fakeDb(rows), 'conv-1')
+    expect(out.some((m) => m.role === 'user')).toBe(true)
+  })
+})

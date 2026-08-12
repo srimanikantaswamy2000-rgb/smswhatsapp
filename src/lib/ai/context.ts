@@ -4,17 +4,24 @@ import { aiContextMessageLimit } from './defaults'
 
 interface DbMessage {
   sender_type: 'customer' | 'agent' | 'bot'
-  content_type: 'text' | 'image'
+  content_type: 'text' | 'image' | 'interactive'
   content_text: string | null
   media_url: string | null
 }
 
 /**
- * Fetch the last N text/image messages of a conversation and map them
- * to the provider-neutral chat shape. Customer messages become `user`;
- * agent and bot messages become `assistant`. Other message kinds
- * (templates, audio, interactive) are excluded — they carry no text to
- * model.
+ * Fetch the last N text/image/interactive messages of a conversation and
+ * map them to the provider-neutral chat shape. Customer messages become
+ * `user`; agent and bot messages become `assistant`. Other message kinds
+ * (templates, audio) are excluded — they carry no text to model.
+ *
+ * `interactive` MUST be included. A customer who only ever taps menu
+ * buttons produces nothing but interactive rows, so excluding them left
+ * the transcript with assistant turns and no user turn at all. Given a
+ * system prompt and nothing to answer, the model replied to the prompt
+ * itself — "I understand. I am ready to assist customers…" was sent to
+ * a real customer on 12 Aug 2026. The button label is the customer's
+ * actual message; it belongs in the transcript.
  *
  * Customer photos appear as a `[photo]` placeholder turn; when
  * `resolveImage` is provided, the LATEST customer photo is resolved to
@@ -34,7 +41,7 @@ export async function buildConversationContext(
     .from('messages')
     .select('sender_type, content_type, content_text, media_url')
     .eq('conversation_id', conversationId)
-    .in('content_type', ['text', 'image'])
+    .in('content_type', ['text', 'image', 'interactive'])
     .order('created_at', { ascending: false })
     .limit(limit)
 
