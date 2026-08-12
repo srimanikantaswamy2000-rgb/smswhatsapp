@@ -18,6 +18,7 @@ import { ArrowLeft, Send, Loader2, Users, Save, AlertTriangle } from 'lucide-rea
 import { useTranslations } from 'next-intl';
 import { useAuth } from '@/hooks/use-auth';
 import { geoAudienceRpcArgs } from '@/lib/broadcasts/geo-audience';
+import { getUndeliverableTagId } from '@/lib/broadcasts/undeliverable';
 // Shared shape — step 4 previously re-declared a local AudienceConfig
 // that predated geo targeting, so a district selection made in step 2
 // arrived here as an unknown type and rendered as 0 reach.
@@ -70,7 +71,9 @@ export function Step4ScheduleSend({
           }
           const { data, error } = await supabase.rpc(
             'resolve_broadcast_audience',
-            geoAudienceRpcArgs(accountId, audience, 1),
+            geoAudienceRpcArgs(accountId, audience, 1, [
+              await getUndeliverableTagId(supabase, accountId),
+            ]),
           );
           if (error) {
             setEstimatedReach(0);

@@ -10,6 +10,7 @@ import {
   geoAudienceRpcArgs,
   targetsEveryone,
 } from '@/lib/broadcasts/geo-audience';
+import { getUndeliverableTagId } from '@/lib/broadcasts/undeliverable';
 import { Button } from '@/components/ui/button';
 import {
   Users,
@@ -256,7 +257,9 @@ export function Step2SelectAudience({
         }
         const { data, error } = await supabase.rpc(
           'resolve_broadcast_audience',
-          geoAudienceRpcArgs(accountId, audience, 1),
+          geoAudienceRpcArgs(accountId, audience, 1, [
+            await getUndeliverableTagId(supabase, accountId),
+          ]),
         );
         if (error) {
           setEstimatedCount(null);

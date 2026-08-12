@@ -5,6 +5,11 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { Contact, MessageTemplate } from '@/types';
 import { geoAudienceRpcArgs } from '@/lib/broadcasts/geo-audience';
+import {
+  getUndeliverableTagId,
+  isUndeliverableError,
+  markUndeliverable,
+} from '@/lib/broadcasts/undeliverable';
 import { normalizeKey } from '@/lib/contacts/dedupe';
 import { phonesMatch } from '@/lib/whatsapp/phone-utils';
 
@@ -136,6 +141,15 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
   async function resolveAudience(audience: AudienceConfig): Promise<Contact[]> {
     const supabase = createClient();
 
+    // Numbers Meta has already told us are not on WhatsApp. Excluded
+    // from every audience type, always — they cannot receive anything,
+    // and retrying them burns the 250/24h tier limit and the quality
+    // rating. Folded into the geo RPC args below and into the shared
+    // exclude-tag pass at the end, so the count and the send agree.
+    const undeliverableTagId = accountId
+      ? await getUndeliverableTagId(supabase, accountId)
+      : null;
+
     let contacts: Contact[] = [];
 
     if (audience.type === 'geo') {
@@ -145,7 +159,7 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
       if (!accountId) throw new Error('Your profile is not linked to an account.');
       const { data, error } = await supabase.rpc(
         'resolve_broadcast_audience',
-        geoAudienceRpcArgs(accountId, audience, null),
+        geoAudienceRpcArgs(accountId, audience, null, [undeliverableTagId]),
       );
       if (error) throw new Error(`Failed to resolve audience: ${error.message}`);
       contacts = ((data ?? []) as { contact: Contact }[]).map((r) => r.contact);
@@ -198,11 +212,21 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
     // Apply exclude tags (works across all contact-derived audience
     // types — including CSV, whose rows are upserted into real contacts
     // above and so can carry tags like any other).
-    if (audience.excludeTagIds && audience.excludeTagIds.length > 0) {
+    // The geo branch already excluded these server-side, but every other
+    // branch reaches here unfiltered — so the not-on-whatsapp tag is
+    // appended for all of them.
+    const excludeTagIds = [
+      ...new Set(
+        [...(audience.excludeTagIds ?? []), undeliverableTagId].filter(
+          (id): id is string => !!id,
+        ),
+      ),
+    ];
+    if (excludeTagIds.length > 0) {
       const { data: excludeRows } = await supabase
         .from('contact_tags')
         .select('contact_id')
-        .in('tag_id', audience.excludeTagIds);
+        .in('tag_id', excludeTagIds);
       const excludedIds = new Set((excludeRows ?? []).map((r) => r.contact_id));
       contacts = contacts.filter((c) => !excludedIds.has(c.id));
     }
@@ -367,6 +391,15 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
         throw new Error('Your profile is not linked to an account.');
       }
 
+      // Resolved once for the whole run so the per-batch failure handler
+      // can tag non-WhatsApp numbers without a lookup per batch. Created
+      // on first use if the tag does not exist yet.
+      const undeliverableTagId = await getUndeliverableTagId(
+        supabase,
+        accountId,
+        user.id,
+      );
+
       // ── Step 1: Resolve audience contacts ─────────────────────────
       setProgress(5);
       const contacts = await resolveAudience(payload.audience);
@@ -527,6 +560,11 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
             resultsByPhone.set(r.phone, r);
           }
 
+          // Contacts Meta rejected as non-WhatsApp in THIS batch, tagged
+          // after the loop so they are skipped by every future campaign
+          // instead of being retried forever.
+          const undeliverableNow: string[] = [];
+
           for (const recipient of batch) {
             const phone = recipient.contact?.phone;
             const result = phone ? resultsByPhone.get(phone) : undefined;
@@ -562,7 +600,24 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
                   error_message: result.error ?? 'Unknown error',
                 })
                 .eq('id', recipient.id);
+              // #131026 only — the number is not on WhatsApp. Spam-rate
+              // (#131048), pacing (#131049) and experiment (#130472)
+              // failures are retryable and must NOT be tagged.
+              if (
+                isUndeliverableError(result.error) &&
+                recipient.contact?.id
+              ) {
+                undeliverableNow.push(recipient.contact.id);
+              }
             }
+          }
+
+          if (undeliverableTagId && undeliverableNow.length > 0) {
+            await markUndeliverable(
+              supabase,
+              undeliverableTagId,
+              undeliverableNow,
+            );
           }
         } catch (err) {
           for (const recipient of batch) {

@@ -53,14 +53,24 @@ export function geoAudienceRpcArgs(
   accountId: string,
   input: GeoAudienceInput,
   limit: number | null,
+  /**
+   * Tags excluded from EVERY send regardless of what the user picked —
+   * currently the `not-on-whatsapp` tag. Folded in here so the count and
+   * the send cannot disagree about it.
+   */
+  alwaysExcludeTagIds: (string | null | undefined)[] = [],
 ) {
   const districts = input.districts ?? [];
+  const excludes = new Set([
+    ...(input.excludeTagIds ?? []),
+    ...alwaysExcludeTagIds.filter((id): id is string => !!id),
+  ]);
   return {
     p_account_id: accountId,
     p_districts: districts,
     p_mandals: effectiveMandals(districts, input.mandals ?? []),
     p_tag_ids: input.tagIds ?? [],
-    p_exclude_tag_ids: input.excludeTagIds ?? [],
+    p_exclude_tag_ids: [...excludes],
     p_limit: limit,
   };
 }

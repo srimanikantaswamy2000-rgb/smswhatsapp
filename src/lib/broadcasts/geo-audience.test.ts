@@ -71,3 +71,35 @@ describe('targetsEveryone', () => {
     expect(targetsEveryone({ excludeTagIds: ['t2'] })).toBe(false);
   });
 });
+
+describe('geoAudienceRpcArgs — always-exclude tags', () => {
+  // Numbers Meta rejected as non-WhatsApp (#131026) must be dropped from
+  // every send, and from the counts too — otherwise the approved number
+  // is bigger than what actually goes out.
+  it('folds the not-on-whatsapp tag into the exclude list', () => {
+    const args = geoAudienceRpcArgs('acct', { districts: ['Eluru'] }, 1, ['wa-bad']);
+    expect(args.p_exclude_tag_ids).toEqual(['wa-bad']);
+  });
+
+  it('merges it with the user-chosen excludes without duplicating', () => {
+    const args = geoAudienceRpcArgs(
+      'acct',
+      { districts: ['Eluru'], excludeTagIds: ['opted-out', 'wa-bad'] },
+      1,
+      ['wa-bad'],
+    );
+    expect(args.p_exclude_tag_ids.sort()).toEqual(['opted-out', 'wa-bad']);
+  });
+
+  it('ignores a null tag id rather than sending garbage', () => {
+    const args = geoAudienceRpcArgs('acct', { districts: ['Eluru'] }, 1, [null, undefined]);
+    expect(args.p_exclude_tag_ids).toEqual([]);
+  });
+
+  it('keeps the count and the send excluding the same tags', () => {
+    const a = { districts: ['Eluru'], excludeTagIds: ['x'] };
+    expect(geoAudienceRpcArgs('acct', a, 1, ['wa']).p_exclude_tag_ids).toEqual(
+      geoAudienceRpcArgs('acct', a, null, ['wa']).p_exclude_tag_ids,
+    );
+  });
+});
