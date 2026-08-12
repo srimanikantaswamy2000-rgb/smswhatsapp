@@ -16,13 +16,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2, MapPin } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 interface GeoRow {
   district: string;
@@ -36,8 +29,6 @@ interface GeoAudiencePickerProps {
   mandals: string[];
   onChange: (next: { districts: string[]; mandals: string[] }) => void;
 }
-
-const ALL_DISTRICTS = '__all__';
 
 export function GeoAudiencePicker({
   accountId,
@@ -66,8 +57,6 @@ export function GeoAudiencePicker({
     };
   }, [accountId]);
 
-  const selectedDistrict = districts[0] ?? ALL_DISTRICTS;
-
   /** Districts with a customer count, biggest first. */
   const districtOptions = useMemo(() => {
     const totals = new Map<string, number>();
@@ -82,27 +71,42 @@ export function GeoAudiencePicker({
     [districtOptions],
   );
 
-  /** Mandals inside the chosen district. Empty when "all districts". */
+  const selectedTotal = useMemo(() => {
+    if (districts.length === 0) return totalContacts;
+    return districtOptions
+      .filter(([name]) => districts.includes(name))
+      .reduce((sum, [, n]) => sum + n, 0);
+  }, [districts, districtOptions, totalContacts]);
+
+  /** Mandals are district-specific, so they only make sense when exactly
+   *  one district is selected. With zero ("all") or several districts we
+   *  target whole districts and hide the mandal narrowing entirely. */
+  const singleDistrict = districts.length === 1 ? districts[0] : null;
+
   const mandalOptions = useMemo(() => {
-    if (selectedDistrict === ALL_DISTRICTS) return [];
+    if (!singleDistrict) return [];
     return rows
-      .filter((r) => r.district === selectedDistrict && r.mandal)
+      .filter((r) => r.district === singleDistrict && r.mandal)
       .map((r) => [r.mandal as string, Number(r.contact_count)] as const)
       .sort((a, b) => a[0].localeCompare(b[0]));
-  }, [rows, selectedDistrict]);
+  }, [rows, singleDistrict]);
 
   /** Contacts in this district that have no mandal on file — they are
    *  reachable by district but NOT by any mandal selection. Saying so
    *  prevents "why did only 40 of my 155 customers get it?". */
   const noMandalCount = useMemo(() => {
-    if (selectedDistrict === ALL_DISTRICTS) return 0;
-    const row = rows.find((r) => r.district === selectedDistrict && !r.mandal);
+    if (!singleDistrict) return 0;
+    const row = rows.find((r) => r.district === singleDistrict && !r.mandal);
     return row ? Number(row.contact_count) : 0;
-  }, [rows, selectedDistrict]);
+  }, [rows, singleDistrict]);
 
-  function pickDistrict(value: string) {
-    if (value === ALL_DISTRICTS) onChange({ districts: [], mandals: [] });
-    else onChange({ districts: [value], mandals: [] }); // mandals reset with the district
+  function toggleDistrict(name: string) {
+    const next = districts.includes(name)
+      ? districts.filter((d) => d !== name)
+      : [...districts, name];
+    // Mandals belong to a single district, so any change that leaves us
+    // with a count other than one district invalidates the selection.
+    onChange({ districts: next, mandals: next.length === 1 ? mandals : [] });
   }
 
   function toggleMandal(name: string) {
@@ -132,40 +136,54 @@ export function GeoAudiencePicker({
   return (
     <div className="space-y-4 rounded-xl border border-border bg-card/50 p-4">
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-          District
-        </label>
-        <Select value={selectedDistrict} onValueChange={(v) => pickDistrict(v ?? ALL_DISTRICTS)}>
-          <SelectTrigger className="w-full border-border bg-muted text-foreground">
-            {/* Explicit label: base-ui's Value renders the raw value when
-                given no children, which leaked the ALL_DISTRICTS
-                sentinel ("__all__") into the UI. */}
-            <SelectValue>
-              {selectedDistrict === ALL_DISTRICTS
-                ? `All districts · ${totalContacts} customers`
-                : `${selectedDistrict} · ${districtOptions.find(([n]) => n === selectedDistrict)?.[1] ?? 0} customers`}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent className="border-border bg-popover">
-            <SelectItem value={ALL_DISTRICTS}>
+        <div className="mb-1.5 flex items-center justify-between">
+          <label className="block text-xs font-medium text-muted-foreground">
+            Districts{' '}
+            {districts.length === 0
+              ? '— all districts'
+              : `— ${districts.length} selected`}
+          </label>
+          {districts.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onChange({ districts: [], mandals: [] })}
+              className="text-xs text-muted-foreground underline hover:text-foreground"
+            >
               All districts
-              <span className="ml-1.5 text-xs text-muted-foreground">
-                {totalContacts} customers
-              </span>
-            </SelectItem>
-            {districtOptions.map(([name, count]) => (
-              <SelectItem key={name} value={name}>
+            </button>
+          )}
+        </div>
+        {/* Multi-select: pick one, several, or none. None = every
+            district (the RPC treats an empty p_districts as "no
+            constraint"). */}
+        <div className="flex flex-wrap gap-2">
+          {districtOptions.map(([name, count]) => {
+            const on = districts.includes(name);
+            return (
+              <button
+                key={name}
+                type="button"
+                onClick={() => toggleDistrict(name)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${
+                  on
+                    ? 'border-primary bg-primary/20 text-primary'
+                    : 'border-border bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+              >
                 {name}
-                <span className="ml-1.5 text-xs text-muted-foreground">
-                  {count}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+                <span className="opacity-60">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {districts.length === 0
+            ? `All districts · ${totalContacts} customers`
+            : `${selectedTotal} customers in ${districts.length} district${districts.length === 1 ? '' : 's'}`}
+        </p>
       </div>
 
-      {selectedDistrict !== ALL_DISTRICTS && (
+      {singleDistrict && (
         <div>
           <div className="mb-1.5 flex items-center justify-between">
             <label className="block text-xs font-medium text-muted-foreground">
@@ -217,7 +235,7 @@ export function GeoAudiencePicker({
           {noMandalCount > 0 && mandals.length > 0 && (
             <p className="mt-2 text-xs text-amber-300">
               {noMandalCount} customer{noMandalCount === 1 ? '' : 's'} in{' '}
-              {selectedDistrict} have no mandal recorded and will NOT be
+              {singleDistrict} have no mandal recorded and will NOT be
               included while mandals are selected. Clear the mandals to reach
               the whole district.
             </p>

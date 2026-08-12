@@ -29,6 +29,33 @@ describe("validateStepsForActivation", () => {
     expect(issues).toEqual([]);
   });
 
+  it("accepts a notify_team step on either channel", () => {
+    expect(
+      validateStepsForActivation([
+        {
+          step_type: "notify_team",
+          step_config: { label: "Callback", phones: ["918500666928"] },
+        },
+        // In-app only — no phones needed.
+        { step_type: "notify_team", step_config: { label: "Callback" } },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("rejects a notify_team step with no label, or one that reaches nobody", () => {
+    const issues = validateStepsForActivation([
+      { step_type: "notify_team", step_config: { phones: ["918500666928"] } },
+      // inapp explicitly off AND no phones => notifies nobody.
+      { step_type: "notify_team", step_config: { label: "x", inapp: false } },
+      { step_type: "notify_team", step_config: { label: "x", phones: ["nope"] } },
+    ]);
+    expect(issues.map((i) => i.path)).toEqual([
+      "steps[0].label",
+      "steps[1].channels",
+      "steps[2].phones",
+    ]);
+  });
+
   it("flags every required field that is missing", () => {
     const issues = validateStepsForActivation([
       { step_type: "send_message", step_config: { text: "  " } },

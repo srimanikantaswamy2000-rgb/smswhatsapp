@@ -22,6 +22,7 @@ import {
   TagIcon,
   UserCheck,
   PencilLine,
+  BellRing,
   Briefcase,
   Hourglass,
   GitBranch,
@@ -107,6 +108,9 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
   assign_conversation: { label: "assign_conversation", icon: UserCheck, border: "border-l-primary" },
   update_contact_field: { label: "update_contact_field", icon: PencilLine, border: "border-l-primary" },
   create_deal: { label: "create_deal", icon: Briefcase, border: "border-l-primary" },
+  // Amber like `condition` — the only step that talks to the business
+  // rather than the customer, so it should not read as another send.
+  notify_team: { label: "notify_team", icon: BellRing, border: "border-l-amber-500" },
   wait: { label: "wait", icon: Hourglass, border: "border-l-border" },
   condition: { label: "condition", icon: GitBranch, border: "border-l-amber-500" },
   send_webhook: { label: "send_webhook", icon: Webhook, border: "border-l-primary" },
@@ -123,6 +127,7 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "assign_conversation",
   "update_contact_field",
   "create_deal",
+  "notify_team",
   "wait",
   "condition",
   "send_webhook",
@@ -180,6 +185,8 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
       return { field: "name", value: "" }
     case "create_deal":
       return { pipeline_id: "", stage_id: "", title: "", value: 0 }
+    case "notify_team":
+      return { label: "", details: "", phones: [], inapp: true }
     case "wait":
       return { amount: 1, unit: "hours" }
     case "condition":
@@ -1480,6 +1487,60 @@ function StepEditor({
           </FieldBlock>
         </>
       )
+    case "notify_team": {
+      // Stored as string[]; edited as one-per-line so a team list stays
+      // readable and pasteable. Blank lines are dropped on the way in.
+      const phones = Array.isArray(cfg.phones) ? (cfg.phones as string[]) : []
+      return (
+        <>
+          <FieldBlock label={t("config.notifyLabelLabel", { defaultValue: "Alert title" })}>
+            <Input
+              value={(cfg.label as string) ?? ""}
+              onChange={(e) => set({ label: e.target.value })}
+              placeholder="Callback request"
+              className="bg-muted text-foreground"
+            />
+          </FieldBlock>
+          <FieldBlock label={t("config.notifyDetailsLabel", { defaultValue: "Details" })}>
+            <Textarea
+              value={(cfg.details as string) ?? ""}
+              onChange={(e) => set({ details: e.target.value })}
+              className="min-h-16 bg-muted text-xs text-foreground"
+            />
+          </FieldBlock>
+          <FieldBlock
+            label={t("config.notifyPhonesLabel", {
+              defaultValue: "WhatsApp these numbers (one per line, no +)",
+            })}
+          >
+            <Textarea
+              value={phones.join("\n")}
+              onChange={(e) =>
+                set({
+                  phones: e.target.value
+                    .split("\n")
+                    .map((p) => p.trim())
+                    .filter(Boolean),
+                })
+              }
+              placeholder="918500666928"
+              className="min-h-16 bg-muted font-mono text-xs text-foreground"
+            />
+          </FieldBlock>
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={cfg.inapp !== false}
+              onCheckedChange={(v) => set({ inapp: v })}
+            />
+            <span className="text-xs text-muted-foreground">
+              {t("config.notifyInappLabel", {
+                defaultValue: "Also show in the dashboard notifications",
+              })}
+            </span>
+          </div>
+        </>
+      )
+    }
     case "close_conversation":
       return (
         <p className="text-xs text-muted-foreground">

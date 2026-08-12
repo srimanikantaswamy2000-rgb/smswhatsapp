@@ -16,8 +16,10 @@ import type {
   WaitStepConfig,
   CreateDealStepConfig,
   AssignConversationStepConfig,
+  NotifyTeamStepConfig,
 } from '@/types'
 import { supabaseAdmin } from './admin-client'
+import { sendDeptAlert } from '@/lib/ai/dept-alert'
 import { engineSendText, engineSendTemplate, engineSendInteractive } from './meta-send'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
@@ -549,6 +551,71 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         status: 'open',
       })
       return 'deal created'
+    }
+
+    case 'notify_team': {
+      const cfg = step.step_config as NotifyTeamStepConfig
+      const label = interpolate(cfg.label ?? '', args).trim()
+      if (!label) throw new Error('notify_team needs a label')
+      const details = interpolate(cfg.details ?? '', args).trim()
+      const phones = (cfg.phones ?? []).map((p) => String(p).trim()).filter(Boolean)
+
+      // Who the alert is about. Best-effort — a notification naming
+      // "—" is still worth far more than no notification at all.
+      let customerName: string | null = null
+      let customerPhone: string | null = null
+      if (args.contactId) {
+        const { data: contact } = await db
+          .from('contacts')
+          .select('name, phone')
+          .eq('id', args.contactId)
+          .eq('account_id', args.automation.account_id)
+          .maybeSingle()
+        customerName = contact?.name ?? null
+        customerPhone = contact?.phone ?? null
+      }
+
+      const channels: string[] = []
+
+      // In-app first: it's a local write that can't be refused by Meta,
+      // so the record survives even when the WhatsApp leg fails.
+      if (cfg.inapp !== false) {
+        await db.from('notifications').insert({
+          account_id: args.automation.account_id,
+          user_id: args.automation.user_id,
+          type: 'conversation_assigned',
+          conversation_id: args.context.conversation_id ?? null,
+          contact_id: args.contactId ?? null,
+          title: label,
+          body: [customerName ?? customerPhone ?? 'Customer', details]
+            .filter(Boolean)
+            .join(' — '),
+        })
+        channels.push('in-app')
+      }
+
+      // WhatsApp leg. sendDeptAlert never throws — it returns false on a
+      // Meta error or a not-yet-approved template. We deliberately do NOT
+      // rethrow: a failed ping must not mark the automation failed and
+      // must not stop later steps, or one Meta hiccup silently costs the
+      // customer their reply. The per-number outcome is recorded in the
+      // step detail instead, which is what the logs page shows.
+      let delivered = 0
+      for (const toPhone of phones) {
+        const ok = await sendDeptAlert({
+          accountId: args.automation.account_id,
+          toPhone,
+          type: label,
+          customerName,
+          customerPhone,
+          item: null,
+          details: details || null,
+        })
+        if (ok) delivered++
+      }
+      if (phones.length) channels.push(`whatsapp ${delivered}/${phones.length}`)
+
+      return `notified (${channels.join(', ') || 'nobody'})`
     }
 
     case 'send_webhook': {

@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
     fromCalls: [] as string[],
     updateCalls: [] as { table: string; filters: [string, string, unknown][] }[],
     upsertCalls: [] as { table: string; payload: unknown }[],
+    insertCalls: [] as { table: string; payload: unknown }[],
   },
 }));
 
@@ -41,6 +42,10 @@ vi.mock("./admin-client", () => {
         state.upsertCalls.push({ table, payload: ops.payload });
         return { data: null, error: null };
       }
+      return { data: null, error: null };
+    }
+    if (table === "notifications") {
+      state.insertCalls.push({ table, payload: ops.payload });
       return { data: null, error: null };
     }
     if (table === "automations") return { data: state.automations, error: null };
@@ -90,6 +95,11 @@ vi.mock("./admin-client", () => {
   };
 });
 
+const deptAlert = vi.hoisted(() => ({ send: vi.fn(async () => true) }));
+vi.mock("@/lib/ai/dept-alert", () => ({
+  sendDeptAlert: deptAlert.send,
+}));
+
 vi.mock("./meta-send", () => ({
   engineSendText: vi.fn(async () => ({ whatsapp_message_id: "m1" })),
   engineSendTemplate: vi.fn(async () => ({ whatsapp_message_id: "m1" })),
@@ -109,6 +119,98 @@ beforeEach(() => {
   h.state.fromCalls = [];
   h.state.updateCalls = [];
   h.state.upsertCalls = [];
+  h.state.insertCalls = [];
+  deptAlert.send.mockClear();
+});
+
+describe("notify_team", () => {
+  function notifyAutomation(): Record<string, unknown> {
+    return {
+      id: "a1",
+      account_id: ACCOUNT,
+      user_id: "u1",
+      name: "Menu → Talk to team",
+      trigger_type: "interactive_reply",
+      trigger_config: { reply_ids: ["menu_talk"] },
+      is_active: true,
+      execution_count: 0,
+      created_at: "",
+      updated_at: "",
+    };
+  }
+
+  function notifyStep(step_config: Record<string, unknown>) {
+    return {
+      id: "s1",
+      automation_id: "a1",
+      step_type: "notify_team",
+      position: 0,
+      parent_step_id: null,
+      step_config,
+    };
+  }
+
+  async function run() {
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "interactive_reply",
+      contactId: "c1",
+      context: { interactive_reply_id: "menu_talk", conversation_id: "conv1" },
+    });
+  }
+
+  it("writes an in-app notification and WhatsApps every configured team number", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.automations = [notifyAutomation()];
+    h.state.steps = [
+      notifyStep({
+        label: "Callback request",
+        details: "wants a call back",
+        phones: ["918500666928", "919493847755"],
+      }),
+    ];
+
+    await run();
+
+    const notif = h.state.insertCalls.find((c) => c.table === "notifications");
+    expect(notif).toBeDefined();
+    expect(notif!.payload).toMatchObject({
+      account_id: ACCOUNT,
+      user_id: "u1",
+      title: "Callback request",
+    });
+    expect(deptAlert.send).toHaveBeenCalledTimes(2);
+    const toPhones = deptAlert.send.mock.calls.map(
+      (c) => (c as unknown as [{ toPhone: string }])[0].toPhone,
+    );
+    expect(toPhones).toEqual(["918500666928", "919493847755"]);
+  });
+
+  it("skips the in-app row when inapp is false", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.automations = [notifyAutomation()];
+    h.state.steps = [
+      notifyStep({ label: "Callback", inapp: false, phones: ["918500666928"] }),
+    ];
+
+    await run();
+
+    expect(h.state.insertCalls.find((c) => c.table === "notifications")).toBeUndefined();
+    expect(deptAlert.send).toHaveBeenCalledTimes(1);
+  });
+
+  it("still records success when WhatsApp alerting fails, so the in-app row survives", async () => {
+    // A pending template or a Meta outage must not turn the whole
+    // automation red — the dashboard notification is the durable channel.
+    deptAlert.send.mockResolvedValueOnce(false);
+    h.state.owned = { id: "c1" };
+    h.state.automations = [notifyAutomation()];
+    h.state.steps = [notifyStep({ label: "Callback", phones: ["918500666928"] })];
+
+    await run();
+
+    expect(h.state.insertCalls.find((c) => c.table === "notifications")).toBeDefined();
+  });
 });
 
 describe("runAutomationsForTrigger — tenant isolation", () => {

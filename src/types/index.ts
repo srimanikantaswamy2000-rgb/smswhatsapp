@@ -451,6 +451,7 @@ export type AutomationStepType =
   | 'assign_conversation'
   | 'update_contact_field'
   | 'create_deal'
+  | 'notify_team'
   | 'wait'
   | 'condition'
   | 'send_webhook'
@@ -507,6 +508,35 @@ export interface SendTemplateStepConfig {
 
 export interface TagStepConfig {
   tag_id: string;
+}
+
+/**
+ * `notify_team` — tell the BUSINESS something happened, as opposed to
+ * every other step, which talks to the customer.
+ *
+ * Until this existed no automation could reach the team at all: a
+ * customer could tap "మాట్లాడాలి" (call me back), get a polite reply
+ * promising a call, and nobody was ever told to make it. The engine's
+ * step list was entirely customer-facing.
+ *
+ * Two independent channels, both optional so a step can do either or
+ * both:
+ *   - `inapp`    → a notifications row (the dashboard bell).
+ *   - `whatsapp` → the approved `dept_alert_te` UTILITY template to
+ *                  each number in `phones`. Utility so it lands even
+ *                  outside a 24h session window with the team.
+ */
+export interface NotifyTeamStepConfig {
+  /** Short label — `{{1}}` on the alert, and the notification title. */
+  label: string;
+  /** Body/detail line. Supports the same {{message.text}} / {{vars.x}}
+   *  interpolation as send_message. The customer's name and phone are
+   *  attached by the engine — no placeholder needed for those. */
+  details?: string;
+  /** Team numbers to WhatsApp (digits, no +). Empty/omitted = in-app only. */
+  phones?: string[];
+  /** Defaults to true — set false for a WhatsApp-only alert. */
+  inapp?: boolean;
 }
 
 export interface AssignConversationStepConfig {
@@ -568,6 +598,7 @@ export type AutomationStepConfig =
   | AssignConversationStepConfig
   | UpdateContactFieldStepConfig
   | CreateDealStepConfig
+  | NotifyTeamStepConfig
   | WaitStepConfig
   | ConditionStepConfig
   | SendWebhookStepConfig

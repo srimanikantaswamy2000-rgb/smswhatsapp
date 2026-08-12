@@ -126,10 +126,10 @@ export function Step1ChooseTemplate({ selectedTemplate, onSelect, onNext, onBack
         <Button
           onClick={onNext}
           disabled={!selectedTemplate}
-          className="bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          className="h-12 px-6 text-base bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {t('next')}
-          <ArrowRight className="h-4 w-4" />
+          <ArrowRight className="h-5 w-5" />
         </Button>
       </div>
     </div>

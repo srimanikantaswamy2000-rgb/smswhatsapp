@@ -15,14 +15,14 @@ import {
   type AudienceConfig,
 } from '@/hooks/use-broadcast-sending';
 import type { VariableMapping } from '@/lib/broadcasts/variables';
-import { Check } from 'lucide-react';
+import { Check, FileText, Users, Pencil, Send } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 const steps = [
-  { label: 'template', key: 'template' },
-  { label: 'audience', key: 'audience' },
-  { label: 'personalize', key: 'personalize' },
-  { label: 'send', key: 'send' },
+  { label: 'template', key: 'template', icon: FileText },
+  { label: 'audience', key: 'audience', icon: Users },
+  { label: 'personalize', key: 'personalize', icon: Pencil },
+  { label: 'send', key: 'send', icon: Send },
 ] as const;
 
 export default function NewBroadcastPage() {
@@ -150,12 +150,16 @@ export default function NewBroadcastPage() {
         {steps.map((step, index) => {
           const isActive = index === currentStep;
           const isCompleted = index < currentStep;
+          const Icon = step.icon;
 
           return (
             <div key={step.key} className="flex flex-1 items-center">
-              <div className="flex items-center gap-2">
+              {/* Icon + plain label — kept visible on every screen size so
+                  a low-literacy user always sees the picture and the word,
+                  not just a bare step number. */}
+              <div className="flex flex-col items-center gap-1 sm:flex-row sm:gap-2">
                 <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium transition-all ${
+                  className={`flex h-11 w-11 items-center justify-center rounded-full transition-all ${
                     isCompleted
                       ? 'bg-primary text-primary-foreground'
                       : isActive
@@ -163,10 +167,10 @@ export default function NewBroadcastPage() {
                         : 'border border-border bg-muted text-muted-foreground'
                   }`}
                 >
-                  {isCompleted ? <Check className="h-4 w-4" /> : index + 1}
+                  {isCompleted ? <Check className="h-6 w-6" /> : <Icon className="h-5 w-5" />}
                 </div>
                 <span
-                  className={`hidden text-sm font-medium sm:block ${
+                  className={`text-center text-xs font-medium sm:text-sm ${
                     isActive ? 'text-foreground' : isCompleted ? 'text-primary' : 'text-muted-foreground'
                   }`}
                 >
@@ -175,7 +179,7 @@ export default function NewBroadcastPage() {
               </div>
               {index < steps.length - 1 && (
                 <div
-                  className={`mx-3 h-px flex-1 ${
+                  className={`mx-2 h-0.5 flex-1 rounded-full sm:mx-3 ${
                     index < currentStep ? 'bg-primary' : 'bg-muted'
                   }`}
                 />

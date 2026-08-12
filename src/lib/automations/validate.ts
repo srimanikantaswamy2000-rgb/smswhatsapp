@@ -107,6 +107,29 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
         issues.push({ path: `${path}.title`, message: 'title is required' })
       }
       break
+    case 'notify_team': {
+      if (!nonEmpty(c.label)) {
+        issues.push({ path: `${path}.label`, message: 'notification label is required' })
+      }
+      const phones = Array.isArray(c.phones) ? c.phones : []
+      // A step with in-app off and no numbers runs "successfully" while
+      // telling nobody anything — exactly the silent failure this step
+      // type exists to end. Refuse it at save time.
+      if (c.inapp === false && phones.length === 0) {
+        issues.push({
+          path: `${path}.channels`,
+          message: 'notify_team must reach someone: enable in-app or add a phone number',
+        })
+      }
+      // Meta wants digits only, country code included, no +.
+      if (phones.some((p) => !/^\d{10,15}$/.test(String(p).trim()))) {
+        issues.push({
+          path: `${path}.phones`,
+          message: 'phone numbers must be 10–15 digits, country code included, no "+"',
+        })
+      }
+      break
+    }
     case 'wait':
       if (typeof c.amount !== 'number' || !Number.isFinite(c.amount) || c.amount <= 0) {
         issues.push({ path: `${path}.amount`, message: 'wait amount must be greater than 0' })
